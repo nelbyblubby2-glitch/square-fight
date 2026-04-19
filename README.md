@@ -6,7 +6,7 @@ Browser-based 2-player arena brawler inspired by thos yt shorts ball fight. No i
 
 ## Gameplay
 
-Two players each pick a square, then fight inside the arena. Squares bounce around the arena and deal damage on collision. Each square has a **passive ability**. Matches end when one square's HP reaches zero.
+Two players each pick a square, then fight inside the arena. Squares bounce around the arena and deal damage on collision. Each square has an **unique ability**. Matches end when one square's HP reaches zero.
 
 ### Controls
 
