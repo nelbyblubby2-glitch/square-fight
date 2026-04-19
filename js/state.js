@@ -17,6 +17,9 @@ let clones         = [];
 let brownSpikes    = [];
 
 let limeProjectiles = [];
+let grayStaticClones = [];   // Gray's freeze-trap clones
+let goldConstructs   = [];   // Gold's static healing constructs
+let mistProjectiles  = [];   // Mist's triple-shot projectiles
 
 // ── Game state ────────────────────────────────────────────────────────────────
 let currentScreen    = "battle";

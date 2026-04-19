@@ -47,20 +47,30 @@ function resolveCollision(s1, s2) {
 
   if (s1.hitImmunityTimer > 0 || s2.hitImmunityTimer > 0) return;
 
-  if (s1.def.type === "purple") { s2.applyPoison(60 + s1.poisonDurationBonus); s1.bounceCount++; }
-  if (s2.def.type === "purple") { s1.applyPoison(60 + s2.poisonDurationBonus); s2.bounceCount++; }
+  if (s1.def.type === "purple") { s2.applyPoison(60 + s1.poisonDurationBonus); }
+  if (s2.def.type === "purple") { s1.applyPoison(60 + s2.poisonDurationBonus); }
 
   if (s1.def.type === "scarlet") s2.applyBleed(300);
   if (s2.def.type === "scarlet") s1.applyBleed(300);
 
   const d1 = s2.getCollisionDamage();
   const d2 = s1.getCollisionDamage();
-  s1.hp -= d1;  s2.hp -= d2;
+  // Frozen bonus: hitting a Gray-frozen enemy deals 10 dmg and breaks the freeze
+  let actual_d1 = s1.grayFreezeTimer > 0 ? 10 : d1;
+  let actual_d2 = s2.grayFreezeTimer > 0 ? 10 : d2;
+  if (s1.grayFreezeTimer > 0) s1.grayFreezeTimer = 0;
+  if (s2.grayFreezeTimer > 0) s2.grayFreezeTimer = 0;
+  // Gold body deals 2 dmg on direct collision
+  if (s2.def.type === "gold") actual_d1 = Math.max(actual_d1, 2);
+  if (s1.def.type === "gold") actual_d2 = Math.max(actual_d2, 2);
+  s1.hp -= actual_d1;  s2.hp -= actual_d2;
   s1.onTakeDamage();  s2.onTakeDamage();
   s1.onHitEnemy();    s2.onHitEnemy();
 
-  floatingTexts.push(new FloatingText(s1.x + s1.size / 2, s1.y, d1, "#ffffff"));
-  floatingTexts.push(new FloatingText(s2.x + s2.size / 2, s2.y, d2, "#ffffff"));
+  const txt1color = "#ffffff";
+  const txt2color = "#ffffff";
+  floatingTexts.push(new FloatingText(s1.x + s1.size / 2, s1.y, actual_d1, txt1color));
+  floatingTexts.push(new FloatingText(s2.x + s2.size / 2, s2.y, actual_d2, txt2color));
   spawnHitEffect(hitX, hitY, "#ffffff");
 
   s1.hitImmunityTimer = HIT_IMMUNITY;
@@ -158,4 +168,42 @@ function resolveCloneCollision(c, s) {
   if (s.onTakeDamage) s.onTakeDamage();
   floatingTexts.push(new FloatingText(s.x + s.size / 2, s.y, dmg, "#ffffff"));
   spawnSquareParticles((c.x + s.x) / 2, (c.y + s.y) / 2, c.def.color, 8, 1, 3, 5);
+}
+
+// ── Gold construct vs Square ──────────────────────────────────────────────────
+function resolveConstructCollision(construct, s) {
+  if (!construct.formed) return;
+
+  const dx      = s.x + s.size / 2 - (construct.x + construct.size / 2);
+  const dy      = s.y + s.size / 2 - (construct.y + construct.size / 2);
+  const minDist = (s.size + construct.size) / 2;
+  const dist    = Math.hypot(dx, dy) || 1;
+
+  if (dist >= minDist) return;
+
+  // Push the square out (construct is immovable)
+  const push = minDist - dist;
+  const nx   = dx / dist;
+  const ny   = dy / dist;
+  s.x += nx * push;
+  s.y += ny * push;
+
+  // Reflect velocity off the construct face
+  const dot = s.vx * nx + s.vy * ny;
+  if (dot < 0) {
+    s.vx -= 2 * dot * nx;
+    s.vy -= 2 * dot * ny;
+    s.normalizeVelocity();
+  }
+
+  // Heal gold owner (with construct's own cooldown)
+  if (construct.hitCooldown <= 0) {
+    construct.owner.hp = Math.min(100, construct.owner.hp + 3);
+    floatingTexts.push(new FloatingText(
+      construct.owner.x + construct.owner.size / 2,
+      construct.owner.y - 10, "+3", "#00ff44"
+    ));
+    spawnSquareParticles(construct.x + construct.size / 2, construct.y + construct.size / 2, "#FFD700", 6, 1, 3, 4);
+    construct.hitCooldown = 40;
+  }
 }

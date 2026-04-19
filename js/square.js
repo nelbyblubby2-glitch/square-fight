@@ -36,6 +36,9 @@ class Square {
     this.poisonPreviewHp     = null;
     this.poisonDurationBonus = 0;
 
+    // Gray freeze (any square can be frozen by Gray's clone trap)
+    this.grayFreezeTimer = 0;
+
     // Bleed (used by Scarlet)
     this.bleedTimer     = 0;
     this.bleedDmgTimer  = 0;
@@ -45,6 +48,9 @@ class Square {
     const b = BehaviorRegistry[this.def.type];
     if (b?.initState) b.initState(this);
     if (b?.onSpawn)   b.onSpawn(this, side);
+
+    // Re-normalize velocity in case initState changed currentSpeed (e.g. Gray)
+    this.normalizeVelocity();
   }
 
   // ── Shared helpers ────────────────────────────────────────────────────────────
@@ -143,6 +149,9 @@ class Square {
   _updateMovement() {
     if (this.stopTimer > 0) { this.stopTimer--; return; }
 
+    // Gray freeze: enemy is frozen in place
+    if (this.grayFreezeTimer > 0) { this.grayFreezeTimer--; return; }
+
     let activeSpeed = this.currentSpeed;
     if (this.speedBoostTimer > 0) { this.speedBoostTimer--; activeSpeed = BOOST_SPEED; }
 
@@ -205,6 +214,15 @@ class Square {
     } else {
       ctx.fillStyle = this.def.color;
       ctx.fillRect(this.x, this.y, this.size, this.size);
+    }
+
+    // Gray freeze visual: icy pulsing border
+    if (this.grayFreezeTimer > 0) {
+      ctx.save();
+      ctx.strokeStyle = `rgba(235, 235, 235, 0.7)`;
+      ctx.lineWidth   = 3;
+      ctx.strokeRect(this.x - 2, this.y - 2, this.size + 4, this.size + 4);
+      ctx.restore();
     }
   }
 }

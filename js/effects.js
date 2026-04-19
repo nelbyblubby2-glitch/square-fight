@@ -1,4 +1,6 @@
 // ── Floating damage number ─────────────────────────────────────────────────────
+// NOTE: FloatingText is for NUMBERS ONLY (damage, heal amounts, stat changes like "+4").
+// Do NOT pass word strings (e.g. "FROZEN", "REELED!", "BLINK!") — use particles instead.
 class FloatingText {
   constructor(x, y, text, color) {
     this.x     = x;

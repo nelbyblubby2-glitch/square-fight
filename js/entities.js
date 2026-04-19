@@ -474,10 +474,6 @@ class LimeProjectile {
       this.owner.y + this.owner.size / 2,
       "#aaff00", 10, 1, 4, 6
     );
-    floatingTexts.push(new FloatingText(
-      this.owner.x + this.owner.size / 2,
-      this.owner.y, "REELED!", "#aaff00"
-    ));
     triggerHitFreeze();
   }
 
@@ -510,6 +506,185 @@ class LimeProjectile {
       ctx.arc(this.x, this.y, 5, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
+    }
+  }
+}
+
+
+// ── Gray's static trap clone ──────────────────────────────────────────────────
+class GrayStaticClone {
+  constructor(owner) {
+    this.owner       = owner;
+    this.mainOwner   = owner;
+    this.x           = owner.x;
+    this.y           = owner.y;
+    this.size        = owner.size;
+    this.life        = 90;          // 1.5s at 60fps
+    this.hitCooldown = 0;
+    this.color       = "#acacac";
+  }
+
+  update() {
+    this.life--;
+    if (this.hitCooldown > 0) this.hitCooldown--;
+
+    // Check if enemy square walks into this clone
+    if (this.hitCooldown > 0) return;
+    squares.forEach((s) => {
+      if (s === this.owner) return;
+      if (s.x < this.x + this.size && s.x + s.size > this.x &&
+          s.y < this.y + this.size && s.y + s.size > this.y) {
+        // Freeze the enemy in place for 3s
+        s.grayFreezeTimer = 180;
+        this.life = 0;  // consume the clone on contact
+        spawnSquareParticles(this.x + this.size / 2, this.y + this.size / 2, "#acacac", 8, 1, 3, 5);
+      }
+    });
+  }
+
+  draw() {
+    if (this.life <= 0) return;
+    const alpha = Math.min(1, this.life / 10);  // fade out in last 10 frames
+    ctx.save();
+    ctx.globalAlpha = 0.45 * alpha;
+    ctx.fillStyle   = "#acacac";
+    ctx.fillRect(this.x, this.y, this.size, this.size);
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+}
+
+
+// ── Gold's static construct ───────────────────────────────────────────────────
+class GoldConstruct {
+  constructor(owner) {
+    this.owner       = owner;
+    this.x           = owner.x;
+    this.y           = owner.y;
+    this.size        = owner.size;
+    this.life        = 90;        // 1s "morphing" phase before fully formed
+    this.formed      = false;
+    this.hitCooldown = 0;
+    this.color       = "#FFD700";
+  }
+
+  update() {
+    if (!this.formed) {
+      this.life--;
+      if (this.life <= 0) { this.formed = true; this.life = Infinity; }
+      return;
+    }
+    if (this.hitCooldown > 0) this.hitCooldown--;
+  }
+
+  draw() {
+    ctx.save();
+    // Solid gold fill always - brighter during formation phase
+    const formAlpha = this.formed ? 0.55 : (0.2 + 0.35 * (1 - this.life / 90));
+    ctx.globalAlpha = formAlpha;
+    ctx.fillStyle   = "#FFD700";
+    ctx.fillRect(this.x, this.y, this.size, this.size);
+    ctx.globalAlpha = 1;
+    // Solid border
+    ctx.strokeStyle = "#FFD700";
+    ctx.lineWidth   = 3;
+    ctx.strokeRect(this.x, this.y, this.size, this.size);
+    // Inner diamond marker when fully formed
+    if (this.formed) {
+      const cx = this.x + this.size / 2;
+      const cy = this.y + this.size / 2;
+      const r  = 8;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - r);
+      ctx.lineTo(cx + r, cy);
+      ctx.lineTo(cx, cy + r);
+      ctx.lineTo(cx - r, cy);
+      ctx.closePath();
+      ctx.fillStyle = "#FFD700";
+      ctx.globalAlpha = 1;
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
+
+// ── Mist's arc projectile ──────────────────────────────────────────────────────
+class MistProjectile {
+  constructor(owner, angle) {
+    this.owner  = owner;
+    this.x      = owner.x + owner.size / 2;
+    this.y      = owner.y + owner.size / 2;
+    const speed = PROJECTILE_SPEED;
+    this.vx     = Math.cos(angle) * speed;
+    this.vy     = Math.sin(angle) * speed;
+    this.alive  = true;
+  }
+
+  update() {
+    this.x += this.vx;
+    this.y += this.vy;
+    // Removed if out of arena
+    if (this.x < arena.x || this.x > arena.x + arena.w ||
+        this.y < arena.y || this.y > arena.y + arena.h) {
+      this.alive = false;
+      return;
+    }
+    // Hit enemy square
+    squares.forEach((s) => {
+      if (!this.alive || s === this.owner) return;
+      if (this.x > s.x && this.x < s.x + s.size &&
+          this.y > s.y && this.y < s.y + s.size) {
+        s.hp -= 1;
+        s.onTakeDamage();
+        floatingTexts.push(new FloatingText(s.x + s.size / 2, s.y, "1", "#ffffff"));
+        spawnSquareParticles(this.x, this.y, "#ddefff", 5, 1, 2, 4);
+        triggerHitFreeze();
+        this.alive = false;
+        // Register hit for Mist teleport counter
+        this.owner.mistHitCounter = (this.owner.mistHitCounter || 0) + 1;
+        if (this.owner.mistHitCounter >= 3) {
+          // Flash 0.1s before teleporting and resetting
+          this.owner.mistFlashTimer = 6;
+        }
+      }
+    });
+  }
+
+  draw() {
+    if (!this.alive) return;
+    ctx.fillStyle = "#ddefff";
+    ctx.fillRect(this.x - 4, this.y - 4, 8, 8);
+  }
+}
+
+// Teleport helper for Mist
+function _mistTeleport(mist) {
+  const margin  = mist.size + 10;
+  const maxAttempts = 50;
+  for (let i = 0; i < maxAttempts; i++) {
+    const tx = arena.x + margin + Math.random() * (arena.w - margin * 2);
+    const ty = arena.y + margin + Math.random() * (arena.h - margin * 2);
+
+    // Check not occupied by enemy square
+    const blocked = squares.some((s) => {
+      if (s === mist) return false;
+      return tx < s.x + s.size + 10 && tx + mist.size > s.x - 10 &&
+             ty < s.y + s.size + 10 && ty + mist.size > s.y - 10;
+    }) || goldConstructs.some((c) => {
+      if (!c.formed) return false;
+      return tx < c.x + c.size + 5 && tx + mist.size > c.x - 5 &&
+             ty < c.y + c.size + 5 && ty + mist.size > c.y - 5;
+    });
+
+    if (!blocked) {
+      // Spawn teleport particles at old position
+      spawnSquareParticles(mist.x + mist.size / 2, mist.y + mist.size / 2, "#ddefff", 15, 1, 4, 7);
+      mist.x = tx;
+      mist.y = ty;
+      // Spawn arrival particles
+      spawnSquareParticles(mist.x + mist.size / 2, mist.y + mist.size / 2, "#ddefff", 15, 1, 4, 7);
+      return;
     }
   }
 }

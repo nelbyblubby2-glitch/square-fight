@@ -6,34 +6,36 @@
     <link rel="stylesheet" href="css/style.css" />
   </head>
   <body>
-
     <!-- HUD -->
     <div id="hud">
       <div class="hud-row">
-        <!-- Left side: charge bar then badge -->
+        <!-- Left side (charge bars + badge) — always rendered, opacity toggled -->
         <div class="hud-side hud-side-left">
-          <div class="hud-charge-col">
-            <div id="charge-bar-left-wrap" style="display:none;flex-direction:column-reverse;width:10px;height:60px;background:rgba(255,255,255,0.1);border-radius:5px;overflow:hidden;">
-              <div id="charge-bar-left" style="width:100%;height:0%;background:#c07840;border-radius:5px;transition:none;"></div>
-            </div>
-          </div>
           <div id="scale-badge-left" class="scale-badge">
             <span id="scale-val-left" class="scale-val"></span>
             <span id="scale-lbl-left" class="scale-lbl"></span>
           </div>
         </div>
+        <div class="hud-charge-col">
+          <div id="charge-bar-left-wrap" class="charge-wrap">
+            <div id="charge-bar-left" class="charge-fill"></div>
+          </div>
+          <div id="charge-bar2-left-wrap" class="charge-wrap">
+            <div id="charge-bar2-left" class="charge-fill"></div>
+          </div>
+        </div>
 
-        <!-- Center: hp-wrapper always centered -->
+        <!-- Center: hp bars always centered -->
         <div class="hp-wrapper">
           <div class="hp-card">
             <div class="hp-header">
               <span id="name-left" class="name-text">---</span>
-              <span id="val-left"  class="val-text">100/100</span>
+              <span id="val-left" class="val-text">100/100</span>
             </div>
             <div class="hp-bar-bg">
-              <div id="fill-left"   class="hp-bar-fill"></div>
+              <div id="fill-left" class="hp-bar-fill"></div>
               <div id="poison-left" class="hp-bar-poison"></div>
-              <div id="bleed-left"  class="hp-bar-bleed"></div>
+              <div id="bleed-left" class="hp-bar-bleed"></div>
             </div>
             <div class="cd-container">
               <div id="cd-left" class="cd-fill"></div>
@@ -42,12 +44,12 @@
           <div class="hp-card">
             <div class="hp-header">
               <span id="name-right" class="name-text">---</span>
-              <span id="val-right"  class="val-text">100/100</span>
+              <span id="val-right" class="val-text">100/100</span>
             </div>
             <div class="hp-bar-bg">
-              <div id="fill-right"   class="hp-bar-fill"></div>
+              <div id="fill-right" class="hp-bar-fill"></div>
               <div id="poison-right" class="hp-bar-poison"></div>
-              <div id="bleed-right"  class="hp-bar-bleed"></div>
+              <div id="bleed-right" class="hp-bar-bleed"></div>
             </div>
             <div class="cd-container">
               <div id="cd-right" class="cd-fill"></div>
@@ -55,11 +57,14 @@
           </div>
         </div>
 
-        <!-- Right side: charge bar then badge -->
+        <!-- Right side (charge bars + badge) — always rendered, opacity toggled -->
         <div class="hud-side hud-side-right">
           <div class="hud-charge-col">
-            <div id="charge-bar-right-wrap" style="display:none;flex-direction:column-reverse;width:10px;height:60px;background:rgba(255,255,255,0.1);border-radius:5px;overflow:hidden;">
-              <div id="charge-bar-right" style="width:100%;height:0%;background:#c07840;border-radius:5px;transition:none;"></div>
+            <div id="charge-bar-right-wrap" class="charge-wrap">
+              <div id="charge-bar-right" class="charge-fill"></div>
+            </div>
+            <div id="charge-bar2-right-wrap" class="charge-wrap">
+              <div id="charge-bar2-right" class="charge-fill"></div>
             </div>
           </div>
           <div id="scale-badge-right" class="scale-badge">
@@ -73,34 +78,57 @@
     <!-- Character select -->
     <div id="select-screen">
       <div class="sides-container">
-        <div id="side-p1" class="select-side" onclick="enterGrid(0)">
-          <span class="side-label">PLAYER 1</span>
-          <div id="prev-p1"       class="preview-square"></div>
-          <div id="name-label-p1" class="square-name-label"></div>
-          <div id="grid-p1"       class="grid-layout"></div>
-          <div id="skill-p1"      class="skill-box"><span class="skill-desc">---</span></div>
-        </div>
-        <div id="side-p2" class="select-side" onclick="enterGrid(1)">
-          <span class="side-label">PLAYER 2</span>
-          <div id="prev-p2"       class="preview-square"></div>
-          <div id="name-label-p2" class="square-name-label"></div>
-          <div id="grid-p2"       class="grid-layout"></div>
-          <div id="skill-p2"      class="skill-box"><span class="skill-desc">---</span></div>
+        <div class="selection-container">
+          <div id="side-p1" class="select-side" onclick="enterGrid(0)">
+            <span class="side-label">PLAYER 1</span>
+            <div id="prev-p1" class="preview-square"></div>
+            <div id="name-label-p1" class="square-name-label"></div>
+            <div id="grid-p1" class="grid-layout"></div>
+            <div id="skill-p1" class="skill-box">
+              <span class="skill-desc">---</span>
+            </div>
+          </div>
+          <div id="side-p2" class="select-side" onclick="enterGrid(1)">
+            <span class="side-label">PLAYER 2</span>
+            <div id="prev-p2" class="preview-square"></div>
+            <div id="name-label-p2" class="square-name-label"></div>
+            <div id="grid-p2" class="grid-layout"></div>
+            <div id="skill-p2" class="skill-box">
+              <span class="skill-desc">---</span>
+            </div>
+          </div>
         </div>
       </div>
       <button id="start-fight-btn" onclick="startBattle()">FIGHT</button>
     </div>
 
     <!-- Win screen -->
-    <div id="win-overlay"></div>
-    <div id="win-content">
+    <div
+      id="win-overlay"
+      onclick="if (window.winScreenVisible) resetBattle();"
+    ></div>
+    <div id="win-content" onclick="if (window.winScreenVisible) resetBattle();">
       <div id="win-text"></div>
-      <div id="win-subtext">PRESS 'R' TO REENGAGE</div>
+      <div id="win-subtext">CLICK OR PRESS 'R' TO REENGAGE</div>
     </div>
 
     <!-- Controls hint -->
     <div id="controls">
-      P1: Z (Chase) X (Speed) C (Stop) | P2: J (Chase) K (Speed) L (Stop) | 0: Roster | R: Reset
+      P1: Z (Chase) X (Speed) C (Stop) | P2: J (Chase) K (Speed) L (Stop) | R:
+      Reset
+    </div>
+
+    <!-- Bottom-left buttons -->
+    <div id="bottom-left-btns">
+      <button
+        id="roster-btn"
+        onclick="
+          currentScreen = currentScreen === 'battle' ? 'select' : 'battle'
+        "
+      >
+        CHANGE SQUARES
+      </button>
+      <button id="reset-btn" onclick="resetBattle()">RESET BATTLE</button>
     </div>
 
     <canvas id="game"></canvas>
@@ -119,9 +147,8 @@
     <script src="js/game.js"></script>
 
     <script>
-      // Bootstrap: wire up canvas then start
       canvas = document.getElementById("game");
-      ctx    = canvas.getContext("2d");
+      ctx = canvas.getContext("2d");
       resize();
       resetBattle();
       loop();

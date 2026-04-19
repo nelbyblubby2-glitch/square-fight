@@ -4,6 +4,15 @@
 // or { segments, filled, color } for a segmented bar, or null.
 function getChargeBar(s) {
   switch (s.def.type) {
+    case "red":
+      return {
+        pct:
+          s.redAbilityCD > 0
+            ? Math.min(100, (1 - s.redAbilityCD / 120) * 100)
+            : 100,
+        color: s.def.color,
+        ready: s.redAbilityCD <= 0,
+      };
     case "brown":
       return {
         pct: s.brownCharged
@@ -74,13 +83,11 @@ function getChargeBar(s) {
         ready: s.limeCooldown <= 0 && !s.limeProjectileActive,
       };
     case "green":
+      // Hit counter segments (3 = next shot upgrade)
       return {
-        pct:
-          s.cooldownTimer > 0
-            ? Math.min(100, (1 - s.cooldownTimer / 180) * 100)
-            : 100,
+        segments: 3,
+        filled: s.greenFlashTimer > 0 ? 3 : (s.greenHitCounter ?? 0),
         color: s.def.color,
-        ready: s.cooldownTimer <= 0,
       };
     case "pink":
       return {
@@ -97,6 +104,36 @@ function getChargeBar(s) {
         segments: 4,
         filled: s.purpleChargeSegments ?? 0,
         color: s.def.color,
+      };
+    case "gold":
+      return {
+        pct: Math.min(100, (s.goldConstructTimer / 600) * 100),
+        color: s.def.color,
+        ready: s.goldConstructTimer >= 600,
+      };
+    case "mist":
+      // Segmented: 3 segments showing hit counter toward teleport
+      return {
+        segments: 3,
+        filled: s.mistFlashTimer > 0 ? 3 : (s.mistHitCounter ?? 0),
+        color: s.def.color,
+      };
+    default:
+      return null;
+  }
+}
+
+// Returns secondary charge bar info (only used by green for burst CD), or null.
+function getChargeBar2(s) {
+  switch (s.def.type) {
+    case "green":
+      return {
+        pct:
+          s.cooldownTimer > 0
+            ? Math.min(100, (1 - s.cooldownTimer / 180) * 100)
+            : 100,
+        color: s.def.color,
+        ready: s.cooldownTimer <= 0 && s.burstShotsLeft === 0,
       };
     default:
       return null;
@@ -167,69 +204,101 @@ function updateHUD() {
 
     cdFill.style.width = `${(s.actionCooldown / ACTION_COOLDOWN) * 100}%`;
 
-    // ── Charge / CD bar ───────────────────────────────────────────────────────
+    cdFill.style.backgroundColor = s.def.color; // Matches the bar to the character's color
+    cdFill.style.boxShadow = `0 0 8px ${s.def.color}`; // Adds the "glow" effect
+    cdFill.style.opacity = "1"; // Increases visibility (the CSS has it at 0.4)
+
+    // -- Primary charge bar (opacity-toggled, never removed from DOM) ----------
     const chargeWrap = document.getElementById(`charge-bar-${side}-wrap`);
-    const chargeBar = document.getElementById(`charge-bar-${side}`);
-    const chargeLbl = document.getElementById(`charge-lbl-${side}`);
     const chargeInfo = getChargeBar(s);
 
-    if (chargeLbl) chargeLbl.style.display = "none"; // labels always hidden
-
     if (chargeInfo && chargeInfo.segments) {
-      // ── Segmented bar (purple) ──────────────────────────────────────────────
-      chargeWrap.style.display = "flex";
-      chargeWrap.style.flexDirection = "column";
-      chargeWrap.style.gap = "2px";
-      chargeWrap.style.overflow = "visible";
-      chargeWrap.style.background = "none";
-      // Rebuild segments if needed
-      if (chargeWrap.children.length !== chargeInfo.segments) {
+      // Segmented mode — original style: no bg on wrap, segments float freely
+      if (chargeWrap.dataset.mode !== "seg" + chargeInfo.segments) {
         chargeWrap.innerHTML = "";
+        chargeWrap.dataset.mode = "seg" + chargeInfo.segments;
+        chargeWrap.style.overflow = "visible";
+        chargeWrap.style.flexDirection = "column";
+        chargeWrap.style.justifyContent = "center";
+        chargeWrap.style.alignItems = "center";
+        chargeWrap.style.gap = "4px";
+        chargeWrap.style.background = "none";
+        chargeWrap.style.borderRadius = "5px";
+        chargeWrap.style.padding = "2px"; // Optional: adds a little breathing room inside the track
+        chargeWrap.style.boxSizing = "border-box";
         for (let i = 0; i < chargeInfo.segments; i++) {
           const seg = document.createElement("div");
           seg.style.cssText =
-            "width:10px;height:12px;border-radius:3px;background:rgba(255,255,255,0.1);transition:none;";
+            "width:10px;height:12px;border-radius:3px;background:rgba(255,255,255,0.1);transition:none;flex-shrink:0;";
           chargeWrap.appendChild(seg);
         }
       }
-      // Fill segments bottom-up
       const segs = chargeWrap.children;
       for (let i = 0; i < chargeInfo.segments; i++) {
         const filled = i < chargeInfo.filled;
         segs[chargeInfo.segments - 1 - i].style.backgroundColor = filled
           ? chargeInfo.color
-          : "rgba(255,255,255,0.1)";
+          : "rgba(255, 255, 255, 0.25)";
         segs[chargeInfo.segments - 1 - i].style.boxShadow = filled
           ? `0 0 6px ${chargeInfo.color}`
           : "none";
         segs[chargeInfo.segments - 1 - i].style.opacity = filled ? "1" : "0.4";
       }
+      chargeWrap.style.opacity = "1";
     } else if (chargeInfo) {
-      // ── Normal fill bar ─────────────────────────────────────────────────────
-      // Restore default wrap style if it was previously a segmented bar
-      chargeWrap.style.flexDirection = "column-reverse";
-      chargeWrap.style.gap = "";
-      chargeWrap.style.overflow = "hidden";
-      chargeWrap.style.background = "rgba(255,255,255,0.1)";
-      if (
-        chargeWrap.children.length !== 1 ||
-        chargeWrap.children[0] !== chargeBar
-      ) {
+      // Fill bar mode — wrap has bg track, fill glows
+      if (chargeWrap.dataset.mode !== "fill") {
         chargeWrap.innerHTML = "";
-        chargeWrap.appendChild(chargeBar);
+        chargeWrap.dataset.mode = "fill";
+        chargeWrap.style.overflow = "hidden";
+        chargeWrap.style.background = "rgba(255,255,255,0.1)";
+        chargeWrap.style.flexDirection = "column-reverse";
+        chargeWrap.style.justifyContent = "";
+        chargeWrap.style.alignItems = "";
+        chargeWrap.style.gap = "";
+        chargeWrap.style.borderRadius = "";
+        chargeWrap.style.padding = "";
+        chargeWrap.style.boxSizing = "";
+        const fb = document.createElement("div");
+        fb.className = "charge-fill";
+        chargeWrap.appendChild(fb);
       }
-      chargeWrap.style.display = "flex";
-      chargeBar.style.height = `${chargeInfo.pct}%`;
-      chargeBar.style.backgroundColor = chargeInfo.color;
-      chargeBar.style.opacity = chargeInfo.ready ? "1" : "0.6";
-      chargeBar.style.boxShadow = chargeInfo.ready
-        ? `0 0 8px ${chargeInfo.color}`
-        : "none";
+      const fillBar = chargeWrap.firstChild;
+      fillBar.style.height = `${chargeInfo.pct}%`;
+      fillBar.style.backgroundColor = chargeInfo.color;
+      fillBar.style.opacity = "1"; // Set to 1 to match the segmented "filled" state
+      fillBar.style.boxShadow = `0 0 10px ${chargeInfo.color}`; // Increased from 4px/8px to match segment glow
+      chargeWrap.style.opacity = "1";
     } else {
-      chargeWrap.style.display = "none";
+      chargeWrap.style.opacity = "0";
     }
 
-    // ── Scaling number badge ──────────────────────────────────────────────────
+    // -- Secondary charge bar (green burst CD) — opacity-toggled --------------
+    const charge2Wrap = document.getElementById(`charge-bar2-${side}-wrap`);
+    const chargeInfo2 = getChargeBar2(s);
+    if (charge2Wrap) {
+      if (chargeInfo2) {
+        if (charge2Wrap.dataset.mode !== "fill2") {
+          charge2Wrap.innerHTML = "";
+          charge2Wrap.dataset.mode = "fill2";
+          const fb2 = document.createElement("div");
+          fb2.className = "charge-fill";
+          charge2Wrap.appendChild(fb2);
+        }
+        const fillBar2 = charge2Wrap.firstChild;
+        fillBar2.style.height = `${chargeInfo2.pct}%`;
+        fillBar2.style.backgroundColor = chargeInfo2.color;
+        fillBar2.style.opacity = chargeInfo2.ready ? "1" : "0.6";
+        fillBar2.style.boxShadow = chargeInfo2.ready
+          ? `0 0 8px ${chargeInfo2.color}`
+          : `0 0 4px ${chargeInfo2.color}`;
+        charge2Wrap.style.opacity = "1";
+      } else {
+        charge2Wrap.style.opacity = "0";
+      }
+    }
+
+    // -- Scale badge — always in DOM, opacity toggled -------------------------
     const scaleWrap = document.getElementById(`scale-badge-${side}`);
     const scaleVal = document.getElementById(`scale-val-${side}`);
     const scaleLbl = document.getElementById(`scale-lbl-${side}`);
@@ -237,14 +306,14 @@ function updateHUD() {
 
     if (scaleWrap) {
       if (scaleInfo) {
-        scaleWrap.style.display = "flex";
+        scaleWrap.style.opacity = "1";
         if (scaleVal) {
           scaleVal.innerText = scaleInfo.value;
           scaleVal.style.color = s.def.color;
         }
         if (scaleLbl) scaleLbl.innerText = scaleInfo.label;
       } else {
-        scaleWrap.style.display = "none";
+        scaleWrap.style.opacity = "0";
       }
     }
   });

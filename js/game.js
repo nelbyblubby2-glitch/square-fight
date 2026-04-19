@@ -6,6 +6,9 @@ function resetBattle() {
   brownSpikes   = [];
   
   limeProjectiles = [];
+  grayStaticClones = [];
+  goldConstructs   = [];
+  mistProjectiles  = [];
   squares       = [new Square(selectedIds[0], "left"), new Square(selectedIds[1], "right")];
   projectiles   = [];
   giantSquares  = [];
@@ -105,6 +108,9 @@ function _runBattle() {
     _updatePulses();
     _updateBrownSpikes();
     _updateLimeProjectiles();
+    _updateGrayStaticClones();
+    _updateGoldConstructs();
+    _updateMistProjectiles();
   } else if (freezeTimer > 0) {
     freezeTimer--;
   }
@@ -115,6 +121,9 @@ function _runBattle() {
   giantSquares.forEach((g) => g.draw());
   brownSpikes.forEach((sp) => sp.draw());
   limeProjectiles.forEach((lp) => lp.draw());
+  grayStaticClones.forEach((gc) => gc.draw());
+  goldConstructs.forEach((gc)   => gc.draw());
+  mistProjectiles.forEach((mp)  => mp.draw());
   squares.forEach((s) => s.draw());
 
   _drawAndCleanClones();
@@ -194,6 +203,14 @@ function _updateProjectiles() {
         }
 
         if (p.owner.onHitEnemy && !p.isIndigo && !p.isPink) p.owner.onHitEnemy();
+
+        // Green: count projectile hits (not body hits) for +1 shot upgrade
+        if (p.mainOwner.def && p.mainOwner.def.type === "green" && p.mainOwner.greenFlashTimer === 0) {
+          p.mainOwner.greenHitCounter = (p.mainOwner.greenHitCounter || 0) + 1;
+          if (p.mainOwner.greenHitCounter >= 3) {
+            p.mainOwner.greenFlashTimer = 6;  // 0.1s flash before reset+upgrade
+          }
+        }
 
         if (p.isIndigo) {
           p.bouncing = true;
@@ -357,3 +374,35 @@ window.addEventListener("keydown", (e) => {
 });
 
 window.addEventListener("resize", resize);
+
+// ── Gray static clones ────────────────────────────────────────────────────────
+function _updateGrayStaticClones() {
+  for (let i = grayStaticClones.length - 1; i >= 0; i--) {
+    const gc = grayStaticClones[i];
+    gc.update();
+    if (gc.life <= 0) {
+      grayStaticClones.splice(i, 1);
+    }
+  }
+}
+
+// ── Gold constructs ────────────────────────────────────────────────────────────
+function _updateGoldConstructs() {
+  goldConstructs.forEach((gc) => {
+    gc.update();
+    // Collide enemy squares against the construct (Gold itself passes through)
+    squares.forEach((s) => {
+      if (s === gc.owner) return;
+      resolveConstructCollision(gc, s);
+    });
+  });
+}
+
+// ── Mist projectiles ──────────────────────────────────────────────────────────
+function _updateMistProjectiles() {
+  for (let i = mistProjectiles.length - 1; i >= 0; i--) {
+    const mp = mistProjectiles[i];
+    mp.update();
+    if (!mp.alive) mistProjectiles.splice(i, 1);
+  }
+}

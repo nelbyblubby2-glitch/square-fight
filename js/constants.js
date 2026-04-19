@@ -8,6 +8,7 @@ const ACTION_COOLDOWN  = 360;
 const SHOT_GAP         = 8;
 const FREEZE_DURATION  = 4;
 const HIT_IMMUNITY     = 15;
+const GRAY_SPEED       = 3.8;   // slightly faster than BASE_SPEED (3.2)
 
 // ── Character definitions ────────────────────────────────────────────────────
 const squareDefs = {
@@ -26,14 +27,7 @@ const squareDefs = {
   13: { name: "Sky",    color: "#87ceeb", type: "sky",    desc: "Wall bounces create a clone (Cooldown: 3s). Clones deal 1 dmg on contact. Each enemy hit increases clone damage by +1." },
   14: { name: "Lime",   color: "#aaff00", type: "lime",   desc: "Fires a slow bouncing projectile that trails a tether line. Hit enemy gets reeled in; each wall bounce while pulled deals escalating damage. Enemy can't touch Lime while being pulled. (Cooldown: 5s after pull completes)" },
   15: { name: "Scarlet",color: "#cc1a1a", type: "scarlet",desc: "On Clash: Apply 3s Bleed (1 dmg/s). Every 3s: Shoot a fast bullet that instantly triggers all Bleed on hit." },
-  16: { name: "Test1",   color: "#acacac", type: "test1",   desc: "test" },
-  17: { name: "Test2",   color: "#acacac", type: "test2",   desc: "test" },
-  18: { name: "Test3",   color: "#acacac", type: "test3",   desc: "test" },
-  19: { name: "Test4",   color: "#acacac", type: "test4",   desc: "test" },
-  20: { name: "Test5",   color: "#acacac", type: "test5",   desc: "test" },
-  21: { name: "Test6",   color: "#acacac", type: "test6",   desc: "test" },
-  22: { name: "Test7",   color: "#acacac", type: "test7",   desc: "test" },
-  23: { name: "Test8",   color: "#acacac", type: "test8",   desc: "test" },
-  24: { name: "Test9",   color: "#acacac", type: "test9",   desc: "test" },
-  25: { name: "Test10",  color: "#acacac", type: "test10",  desc: "test" },
+  16: { name: "Gray",   color: "#acacac", type: "gray",   desc: "Every 0.3s, leaves a static clone that lasts 1.5s. Enemy touching the clone gets frozen for 3s. Frozen enemies take 10 dmg when hit. Slightly faster than others." },
+  17: { name: "Gold",   color: "#FFD700", type: "gold",   desc: "Every 10s, drops a construct (max 3). Constructs heal Gold +2 HP when the enemy hits them. Oldest construct removed when limit is exceeded." },
+  18: { name: "Mist",   color: "#F0F8FF", type: "mist",   desc: "Shoots 3 projectiles in a tiny arc every 2s, each dealing 1 dmg. After hitting the enemy 3 times, teleports to a random free spot in the arena." },
 };

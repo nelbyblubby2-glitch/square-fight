@@ -1,9 +1,17 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// RED — Every collision grants +1 permanent damage
+// RED — Every collision grants +1 permanent damage (cooldown 2s)
 // ─────────────────────────────────────────────────────────────────────────────
 registerBehavior("red", {
+  initState(s) {
+    s.redAbilityCD = 0;
+  },
+  updateSkill(s) {
+    if (s.redAbilityCD > 0) s.redAbilityCD--;
+  },
   onHitEnemy(s) {
+    if (s.redAbilityCD > 0) return;
     s.bonusDamage++;
+    s.redAbilityCD = 120; // 2s at 60fps
   },
 });
 
@@ -12,7 +20,21 @@ registerBehavior("red", {
 // GREEN — Shoots a growing burst of projectiles every 3s
 // ─────────────────────────────────────────────────────────────────────────────
 registerBehavior("green", {
+  initState(s) {
+    s.greenHitCounter  = 0;   // counts projectile hits on enemy; every 3 grants +1 shot
+    s.greenFlashTimer  = 0;   // 6-frame full-flash before reset (0.1s)
+  },
   updateSkill(s) {
+    // Flash pause: bar is full, wait 0.1s then grant +1 shot and reset
+    if (s.greenFlashTimer > 0) {
+      s.greenFlashTimer--;
+      if (s.greenFlashTimer === 0) {
+        s.projectileCount++;
+        s.greenHitCounter = 0;
+      }
+      return;
+    }
+
     if (s.burstShotsLeft > 0) {
       if (s.shotGapTimer > 0) {
         s.shotGapTimer--;
@@ -28,9 +50,7 @@ registerBehavior("green", {
       s.cooldownTimer  = 180;
     }
   },
-  onHitEnemy(s) {
-    s.projectileCount++;
-  },
+  // onHitEnemy intentionally NOT used — counting is done on projectile hit in game.js
 });
 
 
@@ -452,5 +472,92 @@ registerBehavior("scarlet", {
       spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, "#cc1a1a", 5, 1, 2, 4);
     }
     s.scarletShootTimer = 300;
+  },
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GRAY — Faster movement; every 0.5s leaves a static clone (lasts 1.5s).
+//        Enemy touching the clone is frozen for 2s. Frozen enemy hit = 3 dmg.
+// ─────────────────────────────────────────────────────────────────────────────
+registerBehavior("gray", {
+  initState(s) {
+    s.currentSpeed     = GRAY_SPEED;
+    s.grayCloneTimer   = 0;
+  },
+  updateSkill(s) {
+    s.grayCloneTimer++;
+    if (s.grayCloneTimer >= 18) {   // 6 frames = 0.1s at 60fps
+      s.grayCloneTimer = 0;
+      grayStaticClones.push(new GrayStaticClone(s));
+    }
+  },
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GOLD — Every 10s drops a static construct (max 2, oldest removed if over cap).
+//        Construct heals Gold +1 HP when the enemy hits it.
+// ─────────────────────────────────────────────────────────────────────────────
+registerBehavior("gold", {
+  initState(s) {
+    s.goldConstructTimer = 0;
+  },
+  updateSkill(s) {
+    s.goldConstructTimer++;
+    if (s.goldConstructTimer >= 600) {   // 600 frames = 10s
+      s.goldConstructTimer = 0;
+      const myConstructs = goldConstructs.filter(c => c.owner === s);
+      if (myConstructs.length >= 3) {
+        // Remove oldest
+        const oldest = myConstructs[0];
+        const idx    = goldConstructs.indexOf(oldest);
+        if (idx !== -1) goldConstructs.splice(idx, 1);
+      }
+      goldConstructs.push(new GoldConstruct(s));
+    }
+  },
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MIST — Shoots 3 projectiles in a tiny arc every 2s (1 dmg each).
+//        After hitting the enemy 6 times with projectiles, teleport to a random
+//        free spot in the arena (not occupied by an enemy square or construct).
+// ─────────────────────────────────────────────────────────────────────────────
+registerBehavior("mist", {
+  initState(s) {
+    s.mistShootTimer  = 60;
+    s.mistHitCounter  = 0;
+    s.mistFlashTimer  = 0;
+  },
+  updateSkill(s) {
+    // Flash pause: bar is full, wait 0.1s then teleport and reset
+    if (s.mistFlashTimer > 0) {
+      s.mistFlashTimer--;
+      if (s.mistFlashTimer === 0) {
+        s.mistHitCounter = 0;
+        _mistTeleport(s);
+      }
+      return;
+    }
+    if (s.mistShootTimer > 0) {
+      s.mistShootTimer--;
+      return;
+    }
+    // Fire 3 projectiles in a small arc
+    const target = squares.find((t) => t !== s);
+    if (target) {
+      const dx   = target.x + target.size / 2 - (s.x + s.size / 2);
+      const dy   = target.y + target.size / 2 - (s.y + s.size / 2);
+      const dist = Math.hypot(dx, dy) || 1;
+      const baseAngle = Math.atan2(dy, dx);
+      const arcSpread = 0.18;  // ~10 degrees spread each side
+      [-arcSpread, 0, arcSpread].forEach((offset) => {
+        const angle = baseAngle + offset;
+        mistProjectiles.push(new MistProjectile(s, angle));
+      });
+    }
+    s.mistShootTimer = 60;  // 2s cooldown
   },
 });
