@@ -1,0 +1,456 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// RED — Every collision grants +1 permanent damage
+// ─────────────────────────────────────────────────────────────────────────────
+registerBehavior("red", {
+  onHitEnemy(s) {
+    s.bonusDamage++;
+  },
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GREEN — Shoots a growing burst of projectiles every 3s
+// ─────────────────────────────────────────────────────────────────────────────
+registerBehavior("green", {
+  updateSkill(s) {
+    if (s.burstShotsLeft > 0) {
+      if (s.shotGapTimer > 0) {
+        s.shotGapTimer--;
+      } else {
+        projectiles.push(new Projectile(s, squares.find((t) => t !== s)));
+        s.burstShotsLeft--;
+        s.shotGapTimer = SHOT_GAP;
+      }
+    } else if (s.cooldownTimer > 0) {
+      s.cooldownTimer--;
+    } else {
+      s.burstShotsLeft = s.projectileCount;
+      s.cooldownTimer  = 180;
+    }
+  },
+  onHitEnemy(s) {
+    s.projectileCount++;
+  },
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BLUE — On taking damage: gain HP, size, and bonus damage (cooldown 4s)
+// ─────────────────────────────────────────────────────────────────────────────
+registerBehavior("blue", {
+  initState(s) {
+    s.blueGlobalCD = 0;
+  },
+  onTakeDamage(s) {
+    if (s.blueGlobalCD > 0) return;
+    s.bonusDamage++;
+    s.hp = Math.min(100, s.hp + 4);
+    floatingTexts.push(new FloatingText(s.x + s.size / 2, s.y, "+4", "#00ff44"));
+    s.size += 8;
+    s.blueGlobalCD = COOLDOWN_FRAMES;
+  },
+  updateSkill(s) {
+    if (s.blueGlobalCD > 0) s.blueGlobalCD--;
+  },
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// YELLOW — Speed increases with every wall bounce; hitting enemy raises cap
+// ─────────────────────────────────────────────────────────────────────────────
+registerBehavior("yellow", {
+  initState(s) {
+    s.yellowWallBoost = 0.5;
+    s.yellowAccelGain = 0.08;
+    s.yellowSpeedCap  = 5.0;
+    s.yellowCapGrowth = 1.5;
+  },
+  getCollisionDamage(s) {
+    return Math.max(1, Math.floor(s.currentSpeed));
+  },
+  onWallBounce(s) {
+    s.currentSpeed += s.yellowWallBoost;
+  },
+  onHitEnemy(s) {
+    s.yellowWallBoost += s.yellowAccelGain;
+    s.yellowSpeedCap  += s.yellowCapGrowth;
+    s.currentSpeed     = BASE_SPEED;
+    s.normalizeVelocity();
+  },
+  // Yellow speed cap is enforced inside Square._updateMovement via the registry
+  updateSkill(s) {
+    const mag = Math.hypot(s.vx, s.vy);
+    if (mag > s.yellowSpeedCap) {
+      const ratio = s.yellowSpeedCap / mag;
+      s.vx *= ratio;
+      s.vy *= ratio;
+      s.currentSpeed = s.yellowSpeedCap;
+    }
+  },
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WHITE — Spawns a companion; hitting White buffs companion speed & damage
+// ─────────────────────────────────────────────────────────────────────────────
+registerBehavior("white", {
+  onSpawn(s, side) {
+    const gap  = 15;
+    const comp = new CompanionSquare(s);
+    comp.x  = side === "left" ? s.x + s.size + gap : s.x - comp.size - gap;
+    comp.y  = s.y + s.size / 2 - comp.size / 2;
+    comp.vx = side === "left" ? Math.abs(comp.vx) : -Math.abs(comp.vx);
+    companions.push(comp);
+  },
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CYAN — Every 6.5s summons a giant square targeting the enemy
+// ─────────────────────────────────────────────────────────────────────────────
+registerBehavior("cyan", {
+  initState(s) {
+    s.cyanSkillTimer = 360;
+  },
+  updateSkill(s) {
+    if (s.cyanSkillTimer > 0) {
+      s.cyanSkillTimer--;
+    } else {
+      giantSquares.push(new GiantSquare(s, squares.find((t) => t !== s)));
+      s.cyanSkillTimer = 390;
+    }
+  },
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PURPLE — Hits apply poison; every 4th bounce adds +1s poison duration
+// ─────────────────────────────────────────────────────────────────────────────
+registerBehavior("purple", {
+  initState(s) {
+    s.bounceCount         = 0;
+    s.poisonDurationBonus = 0;
+    s.toxicLevel          = 1;
+    s.purpleChargeSegments = 0; // 0-4 wall-bounce charges shown on segmented bar
+    s.purpleResetTimer    = 0;  // counts down 12 frames (0.2s) before resetting bar
+  },
+  updateSkill(s) {
+    if (s.purpleResetTimer > 0) {
+      s.purpleResetTimer--;
+      if (s.purpleResetTimer === 0) {
+        s.purpleChargeSegments = 0;
+      }
+    }
+  },
+  onWallBounce(s) {
+    if (s.purpleResetTimer > 0) return; // mid-reset, ignore
+    s.bounceCount++;
+    s.purpleChargeSegments = Math.min(4, s.purpleChargeSegments + 1);
+    if (s.purpleChargeSegments >= 4) {
+      s.purpleResetTimer = 12; // 0.2s before bar clears
+    }
+    if (s.bounceCount >= 4) {
+      s.poisonDurationBonus += 60;
+      s.bounceCount = 0;
+      s.toxicLevel++;
+    }
+  },
+  // Poison application on collision is handled in collision.js (applyPoison),
+  // which already reads poisonDurationBonus from the square instance.
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// VIOLET — Charges for 10s (like Brown). When charged, locks aim on enemy,
+//           shows dotted line for 1s, then instantly fires beam. Never stops moving.
+//           Hit by enemy resets charge for 2s.
+// ─────────────────────────────────────────────────────────────────────────────
+registerBehavior("violet", {
+  initState(s) {
+    s.violetChargeTimer = 0;    // counts up to 600 (10s)
+    s.violetCharged     = false; // ready to fire
+    s.violetChargePause = 0;    // 2s pause when hit
+    s.violetAimTimer    = 0;    // 60-frame aim window before firing
+    s.violetAimX        = 0;
+    s.violetAimY        = 0;
+    s.violetBeamTimer   = 0;    // 8 frames of beam flash after firing
+  },
+  updateSkill(s) {
+    // Hit-pause: stop charging for 2s
+    if (s.violetChargePause > 0) {
+      s.violetChargePause--;
+      return;
+    }
+
+    // Beam flash display
+    if (s.violetBeamTimer > 0) { s.violetBeamTimer--; return; }
+
+    // Aiming phase: lock aim and count down before firing
+    if (s.violetAimTimer > 0) {
+      s.violetAimTimer--;
+      // Continuously lock aim on enemy during aim window
+      const target = squares.find((t) => t !== s);
+      if (target) { s.violetAimX = target.x + target.size / 2; s.violetAimY = target.y + target.size / 2; }
+
+      if (s.violetAimTimer === 0) {
+        // FIRE
+        s.violetCharged     = false;
+        s.violetChargeTimer = 0;
+        s.violetBeamTimer   = 8;
+
+        const sx      = s.x + s.size / 2;
+        const sy      = s.y + s.size / 2;
+        const beamEnd = getBeamWallEnd(sx, sy, s.violetAimX, s.violetAimY);
+
+        [...squares, ...clones].forEach((target) => {
+          if (target === s || target.mainOwner === s) return;
+          if (!lineIntersectsRect(sx, sy, beamEnd.x, beamEnd.y, target)) return;
+
+          const isClone = (target instanceof Clone);
+          const damage  = isClone ? 1 : 20;
+          target.hp -= damage;
+          if (target.onTakeDamage) target.onTakeDamage();
+          floatingTexts.push(new FloatingText(target.x + target.size / 2, target.y, damage.toString(), "#ffffff"));
+          spawnSquareParticles(target.x + target.size / 2, target.y + target.size / 2, s.def.color, 10, 1, 3, 5);
+          if (!isClone) triggerHitFreeze();
+        });
+      }
+      return;
+    }
+
+    // Charge buildup (like Brown's charge)
+    if (!s.violetCharged) {
+      s.violetChargeTimer++;
+      if (s.violetChargeTimer >= 600) {
+        s.violetCharged     = true;
+        s.violetChargeTimer = 0;
+        spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, "#8a2be2", 10, 1, 3, 5);
+      }
+    } else {
+      // Charged: lock aim and begin 1s aim window, then recharge
+      s.violetCharged = false;
+      s.violetAimTimer = 60;
+    }
+  },
+  onHitEnemy(s) {
+    // Clash: pause charging for 2s but keep the chargeTimer where it is
+    s.violetAimTimer    = 0;
+    s.violetChargePause = 120;
+    // If already charged, mark uncharged but keep timer at 600 so bar stays full
+    if (s.violetCharged) {
+      s.violetCharged     = false;
+      s.violetChargeTimer = 600; // keep bar full during pause
+    }
+  },
+  onTakeDamage(s) {
+    // Taking damage does NOT interrupt violet's charge
+  },
+  draw(s) {
+    // Dotted aim line during aim window only
+    if (s.violetAimTimer > 0) {
+      const sx      = s.x + s.size / 2;
+      const sy      = s.y + s.size / 2;
+      const beamEnd = getBeamWallEnd(sx, sy, s.violetAimX, s.violetAimY);
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(beamEnd.x, beamEnd.y);
+      ctx.setLineDash([5, 5]);
+      ctx.strokeStyle = "rgba(138, 43, 226, 0.6)";
+      ctx.lineWidth   = 2;
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Beam flash when fired
+    if (s.violetBeamTimer > 0) {
+      const sx      = s.x + s.size / 2;
+      const sy      = s.y + s.size / 2;
+      const beamEnd = getBeamWallEnd(sx, sy, s.violetAimX, s.violetAimY);
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(beamEnd.x, beamEnd.y);
+      ctx.setLineDash([]);
+      ctx.strokeStyle = "#8a2be2";
+      ctx.lineWidth   = 8;
+      ctx.shadowBlur  = 15;
+      ctx.shadowColor = "#8a2be2";
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+  },
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ORANGE — Each wall bounce emits an expanding damage pulse
+// ─────────────────────────────────────────────────────────────────────────────
+registerBehavior("orange", {
+  onWallBounce(s) {
+    pulses.push(new Pulse(s));
+  },
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INDIGO — Shoots every 2s; hits bounce and become 1-HP clones after 1s
+// ─────────────────────────────────────────────────────────────────────────────
+registerBehavior("indigo", {
+  initState(s) {
+    s.indigoShootTimer = 120;
+  },
+  updateSkill(s) {
+    if (s.indigoShootTimer > 0) {
+      s.indigoShootTimer--;
+    } else {
+      const target = squares.find((t) => t !== s);
+      if (target) projectiles.push(new Projectile(s, target));
+      s.indigoShootTimer = 180;
+    }
+  },
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PINK — Bouncing projectile; on hit triggers a delayed expanding pulse
+// ─────────────────────────────────────────────────────────────────────────────
+registerBehavior("pink", {
+  initState(s) {
+    s.pinkSkillTimer       = 0;
+    s.pinkProjectileActive = false;
+    s.pinkBounceCount      = 0;
+  },
+  updateSkill(s) {
+    if (s.pinkProjectileActive) return;
+    if (s.pinkSkillTimer > 0) {
+      s.pinkSkillTimer--;
+    } else {
+      const target = squares.find((t) => t !== s);
+      if (target) { projectiles.push(new Projectile(s, target)); s.pinkProjectileActive = true; }
+    }
+  },
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BROWN — Wall bounces place a spike (max 30); charges for 6s → fixed high knockback
+//         Charge resets for 2s if Brown hits an enemy.
+//         Enemy knocked back decays speed per wall bounce.
+//         If high-speed enemy hits Brown, enemy speed resets to base; Brown unaffected.
+// ─────────────────────────────────────────────────────────────────────────────
+registerBehavior("brown", {
+  initState(s) {
+    s.brownChargeTimer  = 0;   // counts up to 360 (6s)
+    s.brownCharged      = false; // ready to deal high knockback
+    s.brownChargePause  = 0;   // 2s pause after hitting enemy
+    s.brownKnockbackVal = 18;  // fixed high knockback speed when charged
+  },
+  updateSkill(s) {
+    if (s.brownChargePause > 0) {
+      s.brownChargePause--;
+      // Don't reset chargeTimer here — onHitEnemy already handled state
+      return;
+    }
+    if (!s.brownCharged) {
+      s.brownChargeTimer++;
+      if (s.brownChargeTimer >= 360) {
+        s.brownCharged = true;
+        spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, "#c07840", 10, 1, 3, 5);
+      }
+    }
+  },
+  onWallBounce(s) {
+    // Limit to 30 spikes — remove oldest if over
+    if (brownSpikes.length >= 30) brownSpikes.shift();
+    let wallSide = null;
+    const bx = s.x + s.size / 2, by = s.y + s.size / 2;
+    const dL = Math.abs(s.x - arena.x);
+    const dR = Math.abs((s.x + s.size) - (arena.x + arena.w));
+    const dT = Math.abs(s.y - arena.y);
+    const dB = Math.abs((s.y + s.size) - (arena.y + arena.h));
+    const minD = Math.min(dL, dR, dT, dB);
+    if      (minD === dL) wallSide = "left";
+    else if (minD === dR) wallSide = "right";
+    else if (minD === dT) wallSide = "top";
+    else                  wallSide = "bottom";
+    brownSpikes.push(new BrownSpike(s, wallSide, bx, by));
+  },
+  onHitEnemy(s) {
+    if (s.brownCharged) {
+      // Charged clash: consume the charge and stop for 2s, but don't reset the timer
+      s.brownCharged = false;
+      s.brownChargeTimer = 0;
+      s.brownChargePause = 120;
+    } else {
+      // Uncharged clash: pause charge buildup for 2s
+      s.brownChargePause = 120;
+    }
+  },
+  draw(s) {
+    // Charge indicator is drawn in the UI, nothing to draw on the square itself
+  },
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SKY — Wall bounces spawn clones (cooldown 3s); hits increase clone dmg
+// ─────────────────────────────────────────────────────────────────────────────
+registerBehavior("sky", {
+  initState(s) {
+    s.skyCloneCooldown = 0;
+    s.skyCloneDmg      = 1;
+  },
+  onWallBounce(s) {
+    if (s.skyCloneCooldown > 0) return;
+    clones.push(new Clone("sky", s.x, s.y, s, {damage: s.skyCloneDmg || 1}));
+    s.skyCloneCooldown = 180; // 3 seconds
+  },
+  onHitEnemy(s) {
+    s.skyCloneDmg++;
+    // Update all existing clones on the field to match new damage
+    clones.filter(c=>c.cloneType==="sky").forEach((c) => { if (c.owner === s) c.damage = s.skyCloneDmg; });
+    floatingTexts.push(new FloatingText(s.x + s.size / 2, s.y - 14, `+${s.skyCloneDmg}`, "#87ceeb"));
+  },
+  updateSkill(s) {
+    if (s.skyCloneCooldown > 0) s.skyCloneCooldown--;
+  },
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LIME — Slow random-aim bouncing projectile with chain tether; hooks enemy and reels them in
+// ─────────────────────────────────────────────────────────────────────────────
+registerBehavior("lime", {
+  initState(s) {
+    s.limeCooldown         = 0;
+    s.limeProjectileActive = false;
+  },
+  updateSkill(s) {
+    if (s.limeCooldown > 0) { s.limeCooldown--; return; }
+    if (s.limeProjectileActive) return;
+    limeProjectiles.push(new LimeProjectile(s));
+    s.limeProjectileActive = true;
+  },
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SCARLET — On Clash: Apply 3s Bleed (1 dmg/s). Every 3s: Shoot a fast bullet
+//           that instantly triggers all Bleed stacks on hit.
+// ─────────────────────────────────────────────────────────────────────────────
+registerBehavior("scarlet", {
+  initState(s) {
+    s.scarletShootTimer = 300;
+  },
+  updateSkill(s) {
+    if (s.scarletShootTimer > 0) {
+      s.scarletShootTimer--;
+      return;
+    }
+    const target = squares.find((t) => t !== s);
+    if (target) {
+      projectiles.push(new Projectile(s, target));
+      spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, "#cc1a1a", 5, 1, 2, 4);
+    }
+    s.scarletShootTimer = 300;
+  },
+});

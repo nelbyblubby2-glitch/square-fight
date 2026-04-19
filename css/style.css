@@ -1,0 +1,378 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;700;800&family=JetBrains+Mono&display=swap");
+
+:root {
+  --bg: #0F0F10;
+  --glass: rgba(255, 255, 255, 0.05);
+  --border: rgba(255, 255, 255, 0.12);
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  overflow: hidden;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  color: white;
+  user-select: none;
+}
+
+canvas {
+  display: block;
+}
+
+/* ── HUD ── */
+#hud {
+  position: absolute;
+  top: 35px;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.hud-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  position: relative;
+}
+
+.hud-side {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hud-charge-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.hp-wrapper {
+  display: flex;
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 10px;
+  border-radius: 24px;
+  border: 1px solid var(--border);
+  backdrop-filter: blur(24px);
+}
+
+.hp-card {
+  width: 250px;
+  padding: 14px 20px;
+  background: var(--glass);
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+
+.hp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.name-text {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.val-text {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+  opacity: 0.5;
+}
+
+.hp-bar-bg {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 8px;
+  position: relative;
+}
+
+.hp-bar-fill {
+  height: 100%;
+  border-radius: 10px;
+  transition: width 0.4s cubic-bezier(0.2, 1, 0.2, 1);
+  position: absolute;
+  left: 0;
+  z-index: 3;
+}
+
+.hp-bar-poison {
+  height: 100%;
+  position: absolute;
+  left: 0;
+  z-index: 2;
+  transition: width 0.4s cubic-bezier(0.2, 1, 0.2, 1);
+  border-radius: 10px;
+  opacity: 0.5;
+}
+
+.hp-bar-bleed {
+  height: 100%;
+  position: absolute;
+  left: 0;
+  z-index: 2;
+  background-color: #cc1a1a;
+  transition: width 0.4s cubic-bezier(0.2, 1, 0.2, 1);
+  border-radius: 10px;
+  opacity: 0;
+}
+
+.cd-container {
+  width: 100%;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.cd-fill {
+  height: 100%;
+  width: 0%;
+  background: #ffffff;
+  opacity: 0.4;
+  transition: width 0.1s linear;
+}
+
+/* ── Controls hint ── */
+#controls {
+  position: absolute;
+  bottom: 25px;
+  width: 100%;
+  text-align: center;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.3em;
+  opacity: 0.4;
+  text-transform: uppercase;
+}
+
+/* ── Win screen ── */
+#win-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+#win-content {
+  position: fixed;
+  inset: 0;
+  z-index: 51;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  pointer-events: none;
+}
+
+#win-text {
+  font-size: 64px;
+  font-weight: 900;
+  color: white;
+  letter-spacing: 0.05em;
+  text-shadow: 0 0 40px rgba(255, 255, 255, 0.6);
+}
+
+#win-subtext {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.3em;
+  color: white;
+  opacity: 0.4;
+  text-transform: uppercase;
+}
+
+/* ── Character Select screen ── */
+#select-screen {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  z-index: 100;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  gap: 30px;
+}
+
+.sides-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  width: 100%;
+  max-width: 1000px;
+}
+
+.select-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: 40px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  padding: 60px 20px;
+}
+
+.select-side:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.square-name-label {
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.preview-square {
+  width: 120px;
+  height: 120px;
+  margin-bottom: 30px;
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+}
+
+.side-label {
+  position: absolute;
+  top: 30px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.4em;
+  opacity: 0.4;
+}
+
+.skill-box {
+  width: 85%;
+  margin-top: 40px;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 20px;
+  text-align: center;
+  border: 1px solid var(--border);
+}
+
+.skill-desc {
+  font-size: 12px;
+  opacity: 0.8;
+  line-height: 1.6;
+}
+
+#start-fight-btn {
+  padding: 20px 80px;
+  background: #1a1a1a;
+  color: #ffffff;
+  border-radius: 100px;
+  font-weight: 900;
+  font-size: 18px;
+  letter-spacing: 0.3em;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: background 0.3s ease, color 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+#start-fight-btn:hover {
+  transform: scale(1.05);
+  background: #ffffff;
+  color: #1a1a1a;
+  box-shadow: 0 15px 40px rgba(255, 255, 255, 0.4);
+}
+
+/* ── Character select grid ── */
+.grid-layout {
+  display: none;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 15px;
+}
+
+.grid-item {
+  width: 60px;
+  height: 60px;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: scale 0.2s;
+}
+
+.grid-item:hover {
+  scale: 1.1;
+}
+
+.grid-item.active {
+  border-color: white;
+}
+
+.selecting .preview-square,
+.selecting .skill-box,
+.selecting .square-name-label {
+  display: none;
+}
+
+.selecting .grid-layout {
+  display: grid;
+}
+
+.selecting.select-side {
+  cursor: default;
+}
+
+/* ── Scaling stat badge ── */
+.scale-badge {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  width: 60px;
+  height: 60px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.scale-val {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.scale-lbl {
+  font-size: 7px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.4);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-family: "Plus Jakarta Sans", sans-serif;
+}
