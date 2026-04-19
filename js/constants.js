@@ -29,5 +29,5 @@ const squareDefs = {
   15: { name: "Scarlet",color: "#cc1a1a", type: "scarlet",desc: "On Clash: Apply 3s Bleed (1 dmg/s). Every 3s: Shoot a fast bullet that instantly triggers all Bleed on hit." },
   16: { name: "Gray",   color: "#acacac", type: "gray",   desc: "Every 0.3s, leaves a static clone that lasts 1.5s. Enemy touching the clone gets frozen for 3s. Frozen enemies take 10 dmg when hit. Slightly faster than others." },
   17: { name: "Gold",   color: "#FFD700", type: "gold",   desc: "Every 10s, drops a construct (max 3). Constructs heal Gold +2 HP when the enemy hits them. Oldest construct removed when limit is exceeded." },
-  18: { name: "Mist",   color: "#F0F8FF", type: "mist",   desc: "Shoots 3 projectiles in a tiny arc every 2s, each dealing 1 dmg. After hitting the enemy 3 times, teleports to a random free spot in the arena." },
+  18: { name: "Mist",   color: "#dbeeff", type: "mist",   desc: "Shoots 3 projectiles in a tiny arc every 2s, each dealing 1 dmg. After hitting the enemy 3 times, teleports to a random free spot in the arena." },
 };

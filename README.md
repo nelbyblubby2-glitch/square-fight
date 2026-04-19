@@ -1,12 +1,12 @@
 # Square Fight
 
-A browser-based 2-player arena brawler where colourful squares with unique abilities battle it out in real time. No installation required — just open `index.html` in any modern browser.
+Browser-based 2-player arena brawler inspired by thos yt shorts ball fight. No installation required — just open `index.html`.
 
 ---
 
 ## Gameplay
 
-Two players each pick a square from the roster, then fight inside a walled arena. Squares bounce around the arena and deal damage on collision. Each square has a **passive ability** that evolves throughout the match — stacking buffs, spawning hazards, inflicting status effects, or fundamentally changing how it moves. Matches end when one square's HP reaches zero.
+Two players each pick a square, then fight inside the arena. Squares bounce around the arena and deal damage on collision. Each square has an **unique ability**. Matches end when one square's HP reaches zero.
 
 ### Controls
 
@@ -21,7 +21,7 @@ Use **CHANGE SQUARES** (bottom-left) to return to character select mid-session, 
 
 ---
 
-## Roster
+## Squares
 
 | # | Square | Ability |
 |---|---|---|
