@@ -2,14 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Square Fight</title>
     <link rel="stylesheet" href="css/style.css" />
   </head>
   <body>
-    <!-- HUD -->
     <div id="hud">
       <div class="hud-row">
-        <!-- Left side (charge bars + badge) — always rendered, opacity toggled -->
         <div class="hud-side hud-side-left">
           <div id="scale-badge-left" class="scale-badge">
             <span id="scale-val-left" class="scale-val"></span>
@@ -25,7 +24,6 @@
           </div>
         </div>
 
-        <!-- Center: hp bars always centered -->
         <div class="hp-wrapper">
           <div class="hp-card">
             <div class="hp-header">
@@ -57,7 +55,6 @@
           </div>
         </div>
 
-        <!-- Right side (charge bars + badge) — always rendered, opacity toggled -->
         <div class="hud-side hud-side-right">
           <div class="hud-charge-col">
             <div id="charge-bar-right-wrap" class="charge-wrap">
@@ -75,7 +72,6 @@
       </div>
     </div>
 
-    <!-- Character select -->
     <div id="select-screen">
       <div class="sides-container">
         <div class="selection-container">
@@ -102,7 +98,6 @@
       <button id="start-fight-btn" onclick="startBattle()">FIGHT</button>
     </div>
 
-    <!-- Win screen -->
     <div
       id="win-overlay"
       onclick="if (window.winScreenVisible) resetBattle();"
@@ -112,13 +107,11 @@
       <div id="win-subtext">CLICK OR PRESS 'R' TO REENGAGE</div>
     </div>
 
-    <!-- Controls hint -->
     <div id="controls">
       P1: Z (Chase) X (Speed) C (Stop) | P2: J (Chase) K (Speed) L (Stop) | R:
       Reset
     </div>
 
-    <!-- Bottom-left buttons -->
     <div id="bottom-left-btns">
       <button
         id="roster-btn"
@@ -133,7 +126,6 @@
 
     <canvas id="game"></canvas>
 
-    <!-- Scripts: load in dependency order -->
     <script src="js/constants.js"></script>
     <script src="js/state.js"></script>
     <script src="js/utils.js"></script>

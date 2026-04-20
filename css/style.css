@@ -298,8 +298,9 @@ canvas {
 }
 
 .select-side {
-  width: 360px;
-  height: 360px;
+  width: 100%;
+  max-width: 360px;
+  height: auto;
   aspect-ratio: 1 / 1;
   display: flex;
   flex-direction: column;
@@ -313,6 +314,7 @@ canvas {
   position: relative;
   overflow: hidden;
   padding: 20px; /* Reduced padding to help internal centering */
+  box-sizing: border-box;
   flex-shrink: 0;
 }
 
@@ -340,12 +342,12 @@ canvas {
 }
 
 .side-label {
-  position: absolute;
-  top: 30px;
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.4em;
   opacity: 0.4;
+  margin-bottom: 15px;
+  flex-shrink: 0;
 }
 
 .skill-box {
@@ -511,4 +513,54 @@ canvas {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   font-family: "Plus Jakarta Sans", sans-serif;
+}
+
+/* ── RESPONSIVE PORTRAIT OVERRIDES ── */
+@media (max-aspect-ratio: 1/1) {
+  .selection-container {
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  #select-screen {
+    gap: 30px;
+    padding: 20px;
+    box-sizing: border-box;
+  }
+
+  .select-side {
+    max-width: 300px;
+    padding: 15px;
+  }
+
+  .preview-square {
+    width: 80px;
+    height: 80px;
+    margin-bottom: 10px !important;
+  }
+
+  .square-name-label {
+    font-size: 1.5rem;
+    margin-bottom: 10px !important;
+  }
+
+  .skill-box {
+    width: 250px;
+    height: 80px;
+  }
+
+  .grid-layout {
+    gap: 10px;
+    max-height: 160px;
+  }
+
+  .grid-item {
+    width: 50px;
+    height: 50px;
+  }
+
+  #start-fight-btn {
+    padding: 15px 60px;
+    font-size: 16px;
+  }
 }
