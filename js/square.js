@@ -125,7 +125,7 @@ class Square {
       this.poisonDmgTimer++;
       if (this.poisonDmgTimer >= 60) {
         this.hp -= 2;
-        floatingTexts.push(new FloatingText(this.x + this.size / 2, this.y, "2", "#b33eff"));
+        floatingNumbers.push(new FloatingNumber(this.x + this.size / 2, this.y, "2", "#b33eff"));
         this.poisonDmgTimer = 0;
         this.onTakeDamage();
       }
@@ -141,7 +141,7 @@ class Square {
     this.bleedDmgTimer++;
     if (this.bleedDmgTimer >= 60) {
       this.hp -= 1;
-      floatingTexts.push(new FloatingText(this.x + this.size / 2, this.y, "1", "#cc1a1a"));
+      floatingNumbers.push(new FloatingNumber(this.x + this.size / 2, this.y, "1", "#cc1a1a"));
       this.bleedDmgTimer = 0;
       this.onTakeDamage();
     }

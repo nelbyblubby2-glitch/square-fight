@@ -35,7 +35,7 @@ let giantSquares   = [];
 let pulses         = [];
 let followingPulses = [];
 let particles      = [];
-let floatingTexts  = [];
+let floatingNumbers  = [];
 let clones         = [];
 let brownSpikes    = [];
 

@@ -187,12 +187,11 @@ function updateHUD() {
 
     const currentHp = Math.max(0, s.hp);
     const maxHp = s.maxHp || 100;
-    const previewHp =
-      s.poisonPreviewHp !== null
-        ? s.poisonPreviewHp
-        : s.bleedPreviewHp !== null
-          ? s.bleedPreviewHp
-          : currentHp;
+    const previewHp = Math.min(
+      currentHp,
+      s.poisonPreviewHp !== null ? s.poisonPreviewHp : currentHp,
+      s.bleedPreviewHp !== null  ? s.bleedPreviewHp  : currentHp
+    );
 
     nameEl.innerText = s.def.name;
     nameEl.style.color = s.def.color;
@@ -281,6 +280,7 @@ function updateHUD() {
       chargeWrap.style.opacity = "1";
     } else {
       chargeWrap.style.opacity = "0";
+      chargeWrap.dataset.mode = "";
     }
 
     // -- Secondary charge bar — supports both segments and fill modes ----------
@@ -348,6 +348,7 @@ function updateHUD() {
         charge2Wrap.style.opacity = "1";
       } else {
         charge2Wrap.style.opacity = "0";
+        charge2Wrap.dataset.mode = "";
       }
     }
 

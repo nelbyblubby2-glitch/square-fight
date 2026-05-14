@@ -69,24 +69,16 @@ registerBehavior("red", {
         s.currentSpeed = (BASE_SPEED + (s._rogueSpeedBonus || 0)) + 3;
         s.normalizeVelocity();
         s._redSpeedBoostTimer = 120; // 2s
-        floatingTexts.push(new FloatingText(s.x + s.size / 2, s.y - 14, "FAST!", "#ff9933"));
+        floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y - 14, "FAST!", "#ff9933"));
       }
     }
 
     // ── Clash Heal ──
     if (s._rogueClashHealAmt > 0) {
       s.hp = Math.min(s.maxHp, s.hp + s._rogueClashHealAmt);
-      floatingTexts.push(new FloatingText(s.x + s.size / 2, s.y - 14, `+${s._rogueClashHealAmt}`, "#00ff44"));
+      floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y - 14, `+${s._rogueClashHealAmt}`, "#00ff44"));
     }
 
-    // ── Counter-chase on hit ──
-    if (s._rogueHitTriggersChase) {
-      s._hitChaseCharge = (s._hitChaseCharge || 0) + 1;
-      if (s._hitChaseCharge >= 2) {
-        s._hitChaseCharge = 0;
-        s.aimNext = true;
-      }
-    }
   },
   onTakeDamage(s) {
     // ── Reactive Passive: passive triggers on taking damage too ──
@@ -103,11 +95,11 @@ registerBehavior("red", {
     if (s._rogueEmergencyHeal && !s._rogueEmergencyHealUsed && s.hp <= 20) {
       s._rogueEmergencyHealUsed = true;
       s.hp = Math.min(s.maxHp, s.hp + 20);
-      floatingTexts.push(new FloatingText(s.x + s.size / 2, s.y - 14, "SAVED! +20", "#00ff44"));
+      floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y - 14, "SAVED! +20", "#00ff44"));
       spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, "#ff3e3e", 12, 1, 3, 6);
     }
 
-    // ── Counter-chase on hit (old behavior) ──
+    // ── Counter-chase: charges on taking damage (2 hits = trigger chase) ──
     if (s._rogueHitTriggersChase) {
       s._hitChaseCharge = (s._hitChaseCharge || 0) + 1;
       if (s._hitChaseCharge >= 2) {
@@ -168,7 +160,7 @@ registerBehavior("blue", {
     if (s.blueGlobalCD > 0) return;
     s.bonusDamage++;
     s.hp = Math.min(100, s.hp + 4);
-    floatingTexts.push(new FloatingText(s.x + s.size / 2, s.y, "+4", "#00ff44"));
+    floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, "+4", "#00ff44"));
     s.size += 8;
     s.blueGlobalCD = COOLDOWN_FRAMES;
   },
@@ -333,7 +325,7 @@ registerBehavior("violet", {
           const damage  = isClone ? 1 : 20;
           target.hp -= damage;
           if (target.onTakeDamage) target.onTakeDamage();
-          floatingTexts.push(new FloatingText(target.x + target.size / 2, target.y, damage.toString(), "#ffffff"));
+          floatingNumbers.push(new FloatingNumber(target.x + target.size / 2, target.y, damage.toString(), "#ffffff"));
           spawnSquareParticles(target.x + target.size / 2, target.y + target.size / 2, s.def.color, 10, 1, 3, 5);
           if (!isClone) triggerHitFreeze();
         });
@@ -531,7 +523,7 @@ registerBehavior("sky", {
     s.skyCloneDmg++;
     // Update all existing clones on the field to match new damage
     clones.filter(c=>c.cloneType==="sky").forEach((c) => { if (c.owner === s) c.damage = s.skyCloneDmg; });
-    floatingTexts.push(new FloatingText(s.x + s.size / 2, s.y - 14, `+${s.skyCloneDmg}`, "#87ceeb"));
+    floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y - 14, `+${s.skyCloneDmg}`, "#87ceeb"));
   },
   updateSkill(s) {
     if (s.skyCloneCooldown > 0) s.skyCloneCooldown--;

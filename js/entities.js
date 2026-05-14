@@ -301,7 +301,7 @@ class BrownSpike {
         s.hp -= 1;
         s.onTakeDamage();
         this.hitCooldown = 40;
-        floatingTexts.push(new FloatingText(s.x + s.size / 2, s.y, "1", "#c07840"));
+        floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, "1", "#c07840"));
         spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, "#c07840", 5, 1, 3, 4);
       }
     });
@@ -428,7 +428,7 @@ class LimeProjectile {
         const dmg = this.pullWallBounces;
         target.hp -= dmg;
         target.onTakeDamage();
-        floatingTexts.push(new FloatingText(target.x + this.targetOriginalSize / 2, target.y, dmg.toString(), "#aaff00"));
+        floatingNumbers.push(new FloatingNumber(target.x + this.targetOriginalSize / 2, target.y, dmg.toString(), "#aaff00"));
         spawnSquareParticles(target.x + target.size / 2, target.y + target.size / 2, "#aaff00", 6, 1, 3, 5);
         triggerHitFreeze();
         this.wallHitCD = 15;
@@ -637,7 +637,7 @@ class MistProjectile {
           this.y > s.y && this.y < s.y + s.size) {
         s.hp -= 1;
         s.onTakeDamage();
-        floatingTexts.push(new FloatingText(s.x + s.size / 2, s.y, "1", "#ffffff"));
+        floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, "1", "#ffffff"));
         spawnSquareParticles(this.x, this.y, "#ddefff", 5, 1, 2, 4);
         triggerHitFreeze();
         this.alive = false;

@@ -1,7 +1,7 @@
 // ── Floating damage number ─────────────────────────────────────────────────────
-// NOTE: FloatingText is for NUMBERS ONLY (damage, heal amounts, stat changes like "+4").
+// NOTE: FloatingNumber is for NUMBERS ONLY (damage, heal amounts, stat changes like "+4").
 // Do NOT pass word strings (e.g. "FROZEN", "REELED!", "BLINK!") — use particles instead.
-class FloatingText {
+class FloatingNumber {
   constructor(x, y, text, color) {
     this.x     = x;
     this.y     = y;
@@ -119,7 +119,7 @@ class Pulse {
         target.hp -= damage;
         this.hitList.push(target);
         if (target.onTakeDamage) target.onTakeDamage();
-        floatingTexts.push(new FloatingText(cx, target.y, damage.toString(), "#ffffff"));
+        floatingNumbers.push(new FloatingNumber(cx, target.y, damage.toString(), "#ffffff"));
         spawnSquareParticles(cx, cy, this.color, 8, 1, 3, 5);
       }
     });
@@ -191,7 +191,7 @@ class FollowingPulse {
         victim.hp -= damage;
         this.hitList.push(victim);
         if (victim.onTakeDamage) victim.onTakeDamage();
-        floatingTexts.push(new FloatingText(vx, victim.y, damage.toString(), "#ffffff"));
+        floatingNumbers.push(new FloatingNumber(vx, victim.y, damage.toString(), "#ffffff"));
         spawnSquareParticles(vx, vy, this.color, 8, 1, 3, 5);
       }
     });

@@ -69,8 +69,8 @@ function resolveCollision(s1, s2) {
 
   const txt1color = "#ffffff";
   const txt2color = "#ffffff";
-  floatingTexts.push(new FloatingText(s1.x + s1.size / 2, s1.y, actual_d1, txt1color));
-  floatingTexts.push(new FloatingText(s2.x + s2.size / 2, s2.y, actual_d2, txt2color));
+  floatingNumbers.push(new FloatingNumber(s1.x + s1.size / 2, s1.y, actual_d1, txt1color));
+  floatingNumbers.push(new FloatingNumber(s2.x + s2.size / 2, s2.y, actual_d2, txt2color));
   spawnHitEffect(hitX, hitY, "#ffffff");
 
   s1.hitImmunityTimer = HIT_IMMUNITY;
@@ -119,7 +119,7 @@ function resolveCompanionCollision(c, s) {
     } else if (c.canDamage) {
       s.hp -= c.damage;
       s.onTakeDamage();
-      floatingTexts.push(new FloatingText(s.x + s.size / 2, s.y, c.damage, "#ffffff"));
+      floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, c.damage, "#ffffff"));
       spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, "#ffffff", 5, 1, 3, 5);
       triggerHitFreeze();
       c.canDamage = false;
@@ -141,7 +141,7 @@ function resolveCompanionCollision(c, s) {
       clone.hp = 0;
       const cloneColor = (clone instanceof Clone) ? "#87ceeb" : "#6C5CE7";
       spawnSquareParticles(clone.x + clone.size / 2, clone.y + clone.size / 2, cloneColor, 8, 1, 4, 6);
-      floatingTexts.push(new FloatingText(clone.x + clone.size / 2, clone.y, "1", cloneColor));
+      floatingNumbers.push(new FloatingNumber(clone.x + clone.size / 2, clone.y, "1", cloneColor));
 
       const cnx  = cdx / (cDist || 1);
       const cny  = cdy / (cDist || 1);
@@ -166,7 +166,7 @@ function resolveCloneCollision(c, s) {
   s.hp -= dmg;
   c.hp  = 0;
   if (s.onTakeDamage) s.onTakeDamage();
-  floatingTexts.push(new FloatingText(s.x + s.size / 2, s.y, dmg, "#ffffff"));
+  floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, dmg, "#ffffff"));
   spawnSquareParticles((c.x + s.x) / 2, (c.y + s.y) / 2, c.def.color, 8, 1, 3, 5);
 }
 
@@ -199,7 +199,7 @@ function resolveConstructCollision(construct, s) {
   // Heal gold owner (with construct's own cooldown)
   if (construct.hitCooldown <= 0) {
     construct.owner.hp = Math.min(100, construct.owner.hp + 3);
-    floatingTexts.push(new FloatingText(
+    floatingNumbers.push(new FloatingNumber(
       construct.owner.x + construct.owner.size / 2,
       construct.owner.y - 10, "+3", "#00ff44"
     ));

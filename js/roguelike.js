@@ -102,7 +102,7 @@ function _resetRogueBattle() {
   pulses        = [];
   followingPulses = [];
   particles     = [];
-  floatingTexts = [];
+  floatingNumbers = [];
   gameOver        = false;
   freezeTimer     = 0;
   winDelayTimer   = 0;

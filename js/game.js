@@ -60,7 +60,7 @@ function goToMainMenu() {
   pulses        = [];
   followingPulses = [];
   particles     = [];
-  floatingTexts = [];
+  floatingNumbers = [];
   brownSpikes   = [];
   limeProjectiles  = [];
   grayStaticClones = [];
@@ -154,7 +154,7 @@ function resetBattle() {
   pulses        = [];
   followingPulses = [];
   particles     = [];
-  floatingTexts = [];
+  floatingNumbers = [];
   gameOver        = false;
   freezeTimer     = 0;
   winDelayTimer   = 0;
@@ -288,10 +288,10 @@ function _runBattle() {
     particles[i].draw();
     if (particles[i].life <= 0) particles.splice(i, 1);
   }
-  for (let i = floatingTexts.length - 1; i >= 0; i--) {
-    floatingTexts[i].update();
-    floatingTexts[i].draw();
-    if (floatingTexts[i].life <= 0) floatingTexts.splice(i, 1);
+  for (let i = floatingNumbers.length - 1; i >= 0; i--) {
+    floatingNumbers[i].update();
+    floatingNumbers[i].draw();
+    if (floatingNumbers[i].life <= 0) floatingNumbers.splice(i, 1);
   }
 
   _checkWin();
@@ -329,14 +329,14 @@ function _updateProjectiles() {
         const pdmg = p.isIndigo || p.isPink ? 1 : 1 + p.owner.bonusDamage;
         s.hp -= pdmg;
         s.onTakeDamage();
-        floatingTexts.push(new FloatingText(s.x + s.size / 2, s.y, pdmg, "#ffffff"));
+        floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, pdmg, "#ffffff"));
 
         // Scarlet bullet: burst all bleed stacks instantly
         if (p.isScarlet) {
           const burstDmg = s.burstBleed();
           if (burstDmg > 0) {
             s.hp -= burstDmg;
-            floatingTexts.push(new FloatingText(s.x + s.size / 2, s.y - 16, burstDmg, "#cc1a1a"));
+            floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y - 16, burstDmg, "#cc1a1a"));
             spawnSquareParticles(p.x, p.y, "#cc1a1a", 10, 1, 4, 6);
             triggerHitFreeze();
           }
@@ -384,7 +384,7 @@ function _updateProjectiles() {
           c.hp = 0;
           const cloneColor = c instanceof Clone ? "#87ceeb" : "#6C5CE7";
           spawnSquareParticles(c.x + c.size / 2, c.y + c.size / 2, cloneColor, 8, 1, 4, 6);
-          floatingTexts.push(new FloatingText(c.x + c.size / 2, c.y, "1", "#ffffff"));
+          floatingNumbers.push(new FloatingNumber(c.x + c.size / 2, c.y, "1", "#ffffff"));
         }
       }
     }
@@ -423,7 +423,7 @@ function _updateGiantSquares() {
         s.hp -= damage;
         g.hitList.push(s);
         if (s.onTakeDamage) s.onTakeDamage();
-        floatingTexts.push(new FloatingText(s.x + s.size / 2, s.y, damage.toString(), "#ffffff"));
+        floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, damage.toString(), "#ffffff"));
         spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, g.owner.def.color, 8, 1, 3, 5);
         if (!isClone) triggerHitFreeze();
       }
