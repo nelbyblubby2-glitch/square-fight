@@ -4,14 +4,117 @@
 registerBehavior("red", {
   initState(s) {
     s.redAbilityCD = 0;
+    s._redLastClashTime = -999; // for clash size streak
+    s._redClashSizeBonus = 0;   // temporary size bonus from streak
+    s._redClashSizeTimer = 0;   // frames remaining for size bonus
+    s._redSpeedBoostTimer = 0;  // frames remaining for clash burst speed
   },
   updateSkill(s) {
     if (s.redAbilityCD > 0) s.redAbilityCD--;
+
+    // Decay clash size streak bonus
+    if (s._redClashSizeTimer > 0) {
+      s._redClashSizeTimer--;
+      if (s._redClashSizeTimer === 0) {
+        // Remove size bonus: restore to base (including rogue size bonus)
+        const rogueSize = s._rogueClashSizeStreak ? 0 : 0; // size is managed below
+        s.size = Math.max(SIZE, s.size - s._redClashSizeBonus);
+        s._redClashSizeBonus = 0;
+      }
+    }
+
+    // Decay speed boost from Clash Burst
+    if (s._redSpeedBoostTimer > 0) {
+      s._redSpeedBoostTimer--;
+      if (s._redSpeedBoostTimer === 0) {
+        s.currentSpeed = BASE_SPEED + (s._rogueSpeedBonus || 0);
+        s.normalizeVelocity();
+      }
+    }
   },
   onHitEnemy(s) {
-    if (s.redAbilityCD > 0) return;
-    s.bonusDamage++;
-    s.redAbilityCD = 120; // 2s at 60fps
+    // ── Clash passive: +N permanent damage ──
+    const noCD = s._rogueNoPassiveCD || false;
+    if (noCD || s.redAbilityCD <= 0) {
+      const perHit = s._roguePassivePerHit || 1;
+      s.bonusDamage += perHit;
+      if (!noCD) s.redAbilityCD = 120; // 2s at 60fps
+    }
+
+    // ── Clash Size Streak ──
+    if (s._rogueClashSizeStreak) {
+      const now = performance.now();
+      const timeSinceLast = (now - (s._redLastClashTime || 0)) / 1000;
+      if (timeSinceLast <= 2) {
+        // Consecutive clash within 2s: add 20% size boost
+        const bonus = Math.round(SIZE * 0.2);
+        s.size += bonus;
+        s._redClashSizeBonus = (s._redClashSizeBonus || 0) + bonus;
+        s._redClashSizeTimer = 120; // 2s duration, refreshed
+      } else {
+        // Not consecutive: remove any existing bonus
+        if (s._redClashSizeBonus > 0) {
+          s.size = Math.max(SIZE, s.size - s._redClashSizeBonus);
+          s._redClashSizeBonus = 0;
+          s._redClashSizeTimer = 0;
+        }
+      }
+      s._redLastClashTime = now;
+    }
+
+    // ── Speed on big clash (Clash Burst) ──
+    if (s._rogueSpeedOnBigClash) {
+      const dmgDealt = s.getCollisionDamage();
+      if (dmgDealt > 10) {
+        s.currentSpeed = (BASE_SPEED + (s._rogueSpeedBonus || 0)) + 3;
+        s.normalizeVelocity();
+        s._redSpeedBoostTimer = 120; // 2s
+        floatingTexts.push(new FloatingText(s.x + s.size / 2, s.y - 14, "FAST!", "#ff9933"));
+      }
+    }
+
+    // ── Clash Heal ──
+    if (s._rogueClashHealAmt > 0) {
+      s.hp = Math.min(s.maxHp, s.hp + s._rogueClashHealAmt);
+      floatingTexts.push(new FloatingText(s.x + s.size / 2, s.y - 14, `+${s._rogueClashHealAmt}`, "#00ff44"));
+    }
+
+    // ── Counter-chase on hit ──
+    if (s._rogueHitTriggersChase) {
+      s._hitChaseCharge = (s._hitChaseCharge || 0) + 1;
+      if (s._hitChaseCharge >= 2) {
+        s._hitChaseCharge = 0;
+        s.aimNext = true;
+      }
+    }
+  },
+  onTakeDamage(s) {
+    // ── Reactive Passive: passive triggers on taking damage too ──
+    if (s._roguePassiveOnHit) {
+      const noCD = s._rogueNoPassiveCD || false;
+      if (noCD || s.redAbilityCD <= 0) {
+        const perHit = s._roguePassivePerHit || 1;
+        s.bonusDamage += perHit;
+        if (!noCD) s.redAbilityCD = 120;
+      }
+    }
+
+    // ── Emergency Heal ──
+    if (s._rogueEmergencyHeal && !s._rogueEmergencyHealUsed && s.hp <= 20) {
+      s._rogueEmergencyHealUsed = true;
+      s.hp = Math.min(s.maxHp, s.hp + 20);
+      floatingTexts.push(new FloatingText(s.x + s.size / 2, s.y - 14, "SAVED! +20", "#00ff44"));
+      spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, "#ff3e3e", 12, 1, 3, 6);
+    }
+
+    // ── Counter-chase on hit (old behavior) ──
+    if (s._rogueHitTriggersChase) {
+      s._hitChaseCharge = (s._hitChaseCharge || 0) + 1;
+      if (s._hitChaseCharge >= 2) {
+        s._hitChaseCharge = 0;
+        s.aimNext = true;
+      }
+    }
   },
 });
 

@@ -1,3 +1,142 @@
+// ── Screen management ─────────────────────────────────────────────────────────
+let activeMode = "menu"; // "menu" | "squarefight-select" | "battle" | "rogue-select" | "rogue-run"
+
+function showScreen(id) {
+  const overlays = ["main-menu", "select-screen", "rogue-select-screen"];
+  overlays.forEach(s => {
+    const el = document.getElementById(s);
+    if (el) el.style.display = "none";
+  });
+
+  const isBattle = (id === "battle" || id === "rogue-run");
+  const isRogue  = (id === "rogue-run");
+
+  // HUD always shown during any battle mode
+  const hud = document.getElementById("hud");
+  if (hud) hud.style.display = isBattle ? "flex" : "none";
+
+  // HUD home button: shown only during battle/rogue-run
+  const hudHomeBtn = document.getElementById("hud-home-btn");
+  if (hudHomeBtn) hudHomeBtn.style.display = isBattle ? "block" : "none";
+
+  // Controls text: only in normal battle
+  const ctrl = document.getElementById("controls");
+  if (ctrl) ctrl.style.display = (isBattle && !isRogue) ? "block" : "none";
+
+  // Bottom buttons container
+  const btns = document.getElementById("bottom-left-btns");
+  if (btns) btns.style.display = isBattle ? "flex" : "none";
+
+  // Reset and Squares buttons: hidden in rogue
+  const resetBtn  = document.getElementById("reset-btn");
+  const rosterBtn = document.getElementById("roster-btn");
+  if (resetBtn)  resetBtn.style.display  = isRogue ? "none" : "";
+  if (rosterBtn) rosterBtn.style.display = isRogue ? "none" : "";
+
+  // Mobile controls: let CSS (pointer: coarse) handle show/hide on mobile vs desktop.
+  // Only control P2 visibility in rogue mode.
+  const mobP2 = document.getElementById("mobile-p2");
+  if (mobP2) mobP2.style.display = isRogue ? "none" : "";
+
+  // Show the named overlay (non-battle screens)
+  if (!isBattle) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = "flex";
+  }
+
+  activeMode = id;
+}
+
+function goToMainMenu() {
+  showScreen("main-menu");
+  // Clear all battle state so nothing carries over when re-entering any mode
+  rogueState    = null;
+  selectedIds   = [1, 2];
+  squares       = [];
+  projectiles   = [];
+  companions    = [];
+  clones        = [];
+  giantSquares  = [];
+  pulses        = [];
+  followingPulses = [];
+  particles     = [];
+  floatingTexts = [];
+  brownSpikes   = [];
+  limeProjectiles  = [];
+  grayStaticClones = [];
+  goldConstructs   = [];
+  mistProjectiles  = [];
+  gameOver         = false;
+  freezeTimer      = 0;
+  winDelayTimer    = 0;
+  window.winScreenVisible = false;
+  document.getElementById("win-overlay").style.display = "none";
+  document.getElementById("win-content").style.display  = "none";
+}
+
+function goToSquareFight() {
+  showScreen("select-screen");
+  activeMode = "squarefight-select"; // must come AFTER showScreen()
+}
+
+// IDs that are unlocked for roguelike. Add more IDs here as you unlock them.
+const ROGUE_UNLOCKED_IDS = new Set([1]);
+
+function buildRogueSelectGrid() {
+  const grid = document.getElementById("rogue-grid");
+  if (!grid) return;
+  grid.innerHTML = "";
+
+  Object.entries(squareDefs).forEach(([idStr, def]) => {
+    const id = Number(idStr);
+    const unlocked = ROGUE_UNLOCKED_IDS.has(id);
+    const card = document.createElement("div");
+    card.className = "rogue-char-card " + (unlocked ? "rogue-available" : "rogue-locked");
+    if (unlocked) {
+      card.onclick = () => { SFX.uiClick(); startRogueRun(id); };
+    }
+
+    const preview = document.createElement("div");
+    preview.className = "rogue-char-preview";
+    preview.style.background = def.color;
+
+    const name = document.createElement("div");
+    name.className = "rogue-char-name";
+    name.style.color = def.color;
+    name.textContent = def.name.toUpperCase();
+
+    card.appendChild(preview);
+    card.appendChild(name);
+
+    if (unlocked) {
+      const passive = document.createElement("div");
+      passive.className = "rogue-char-passive";
+      passive.textContent = def.desc;
+      card.appendChild(passive);
+    } else {
+      const locked = document.createElement("div");
+      locked.className = "rogue-locked-label";
+      locked.textContent = "LOCKED";
+      card.appendChild(locked);
+    }
+
+    grid.appendChild(card);
+  });
+}
+
+function goToRoguelike() {
+  buildRogueSelectGrid();
+  showScreen("rogue-select-screen");
+}
+
+function onWinClick() {
+  if (activeMode === "rogue-run") {
+    rogueOnWin();
+  } else {
+    resetBattle();
+  }
+}
+
 // ── Reset / start ─────────────────────────────────────────────────────────────
 function resetBattle() {
   resize();
@@ -22,11 +161,20 @@ function resetBattle() {
   window.winScreenVisible = false;
   document.getElementById("win-overlay").style.display = "none";
   document.getElementById("win-content").style.display = "none";
+  document.getElementById("win-subtext").innerText = "CLICK OR PRESS 'R' TO REENGAGE";
 }
 
 function startBattle() {
   currentScreen = "battle";
-  resetBattle();
+  activeMode = "battle";
+  showScreen("battle"); // hides other screens, shows HUD
+  // Defer resize() by one frame so the browser reflows the HUD before
+  // getBoundingClientRect() measures hudBottom. Without this, calling resize()
+  // synchronously right after display:none→flex gives hudBottom=0 (stale value),
+  // which shifts the arena up under the HUD instead of centering it correctly.
+  requestAnimationFrame(() => {
+    resetBattle(); // resetBattle() already calls resize() first
+  });
 }
 
 // ── Main game loop ────────────────────────────────────────────────────────────
@@ -41,11 +189,9 @@ function loop() {
   ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
   ctx.strokeRect(arena.x, arena.y, arena.w, arena.h);
 
-  if (currentScreen === "battle") {
-    document.getElementById("select-screen").style.display = "none";
+  if (activeMode === "battle" || activeMode === "rogue-run") {
     _runBattle();
-  } else {
-    document.getElementById("select-screen").style.display = "flex";
+  } else if (activeMode === "squarefight-select") {
     renderSelectUI();
   }
 
@@ -54,6 +200,10 @@ function loop() {
 }
 
 function _runBattle() {
+  // Guard: squares may not be populated yet if resetBattle() was deferred
+  // (e.g. on the frame between startBattle() and the requestAnimationFrame callback).
+  if (squares.length < 2) return;
+
   if (!gameOver && freezeTimer <= 0) {
     // Squares that are currently being reeled by Lime skip their own physics update
     const hookedTargets = new Set(limeProjectiles.filter(lp => lp.hooked).map(lp => lp.pullTarget));
@@ -115,7 +265,9 @@ function _runBattle() {
     freezeTimer--;
   }
 
-  if (!gameOver) updateHUD();
+  if (!gameOver) {
+    updateHUD();
+  }
 
   // Draw order
   giantSquares.forEach((g) => g.draw());
@@ -309,9 +461,35 @@ function _drawAndCleanClones() {
 function _checkWin() {
   if (gameOver || !squares.some((s) => s.hp <= 0)) return;
   gameOver = true;
-  const loser = squares.find((s) => s.hp <= 0);
+
+  // Save rogue stats RIGHT NOW before any reset can happen
+  if (activeMode === "rogue-run" && rogueState && squares.length >= 2) {
+    rogueState.hp         = Math.max(0, Math.ceil(squares[0].hp));
+    rogueState.clashBonus = Math.max(0, squares[0].bonusDamage - (rogueState.power - 1));
+  }
+
+  const loser  = squares.find((s) => s.hp <= 0);
   const winner = squares.find((s) => s.hp > 0);
-  winnerText   = winner ? `${winner.def.name.toUpperCase()} WINS` : "DRAW";
+
+  if (activeMode === "rogue-run" && rogueState) {
+    const playerWon = squares[0] && squares[0].hp > 0;
+    const floor = rogueState.floor;
+    const nextFloor = floor + 1;
+    if (playerWon) {
+      const isLastFloor = floor >= rogueEnemies.length;
+      winnerText = isLastFloor ? "FLOOR CLEARED!" : `FLOOR ${floor} CLEARED!`;
+      document.getElementById("win-subtext").innerText = isLastFloor
+        ? "CLICK TO SEE RESULTS"
+        : `CLICK TO ADVANCE TO FLOOR ${nextFloor}`;
+    } else {
+      winnerText = "YOU DIED";
+      document.getElementById("win-subtext").innerText = "CLICK TO RETURN TO MENU";
+    }
+  } else {
+    winnerText = winner ? `${winner.def.name.toUpperCase()} WINS` : "DRAW";
+    document.getElementById("win-subtext").innerText = "CLICK OR PRESS 'R' TO REENGAGE";
+  }
+
   winDelayTimer = 90;
   if (loser) {
     for (let i = 0; i < 60; i++) {
@@ -369,31 +547,35 @@ function _applyAction(square, action) {
 
 // ── Mobile button action helper (called from HTML ontouchstart/onclick) ────────
 function _mobileAction(playerIdx, action) {
-  if (currentScreen !== "battle" || gameOver) return;
+  if (activeMode !== "battle" && activeMode !== "rogue-run") return;
+  if (gameOver) return;
+  if (activeMode === "rogue-run" && playerIdx === 1) return; // P2 disabled in rogue
   _applyAction(squares[playerIdx], action);
 }
 
 // ── Keyboard input ────────────────────────────────────────────────────────────
 window.addEventListener("keydown", (e) => {
   const key = e.key.toLowerCase();
-  if (key === "r") { SFX.uiClick(); resetBattle(); }
-  if (key === "0") { SFX.uiClick(); currentScreen = currentScreen === "battle" ? "select" : "battle"; }
+  // R: reset only in normal battle (not rogue)
+  if (key === "r" && activeMode === "battle") { SFX.uiClick(); resetBattle(); }
 
-  if (currentScreen !== "battle" || gameOver) return;
+  if ((activeMode !== "battle" && activeMode !== "rogue-run") || gameOver) return;
 
   // P1: Z = flip, X = chase, C = speed
   if (key === "z") _applyAction(squares[0], "flip");
   if (key === "x") _applyAction(squares[0], "chase");
   if (key === "c") _applyAction(squares[0], "speed");
 
-  // P2: J = flip, K = chase, L = speed
+  // P2: J = flip, K = chase, L = speed (disabled in rogue mode)
+  if (activeMode === "rogue-run") return;
   if (key === "j") _applyAction(squares[1], "flip");
   if (key === "k") _applyAction(squares[1], "chase");
   if (key === "l") _applyAction(squares[1], "speed");
 });
 
 // ── Touch / swipe input ───────────────────────────────────────────────────────
-(function () {
+// Called from index.html after canvas is assigned, so `canvas` is guaranteed defined.
+function _initTouchControls() {
   // We split the screen in half: left half = P1, right half = P2
   // Swipe left/right  → flip X
   // Swipe up/down     → flip Y
@@ -441,7 +623,7 @@ window.addEventListener("keydown", (e) => {
   canvas.addEventListener("touchcancel", (e) => {
     for (const t of e.changedTouches) delete touches[t.identifier];
   }, { passive: false });
-})();
+}
 
 window.addEventListener("resize", resize);
 

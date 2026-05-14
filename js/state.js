@@ -13,7 +13,7 @@ const arenaX = (VIRTUAL_WIDTH - arenaW) / 2;
 
 // 3. Set Y to create a gap:
 // The HUD usually ends around Y=150. Setting Y=200 gives a 50px gap.
-const arenaY =540; 
+const arenaY = 540; 
 
 // 4. Update the arena object
 const arena = { 

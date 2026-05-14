@@ -7,7 +7,8 @@ class Square {
   constructor(id, side) {
     this.id   = id;
     this.def  = squareDefs[id];
-    this.hp   = 100;
+    this.hp    = 100;
+    this.maxHp = 100;
     this.size = SIZE;
     this.x    = side === "left" ? arena.x + 80 : arena.x + arena.w - SIZE - 80;
     this.y    = arena.y + arena.h / 2 - SIZE / 2;
@@ -170,10 +171,11 @@ class Square {
 
     if (!bounced) return;
 
-    // Decay brown knockback speed toward BASE_SPEED each wall bounce
-    if (this.brownKnockbackDecaying && this.currentSpeed > BASE_SPEED) {
-      this.currentSpeed = Math.max(BASE_SPEED, this.currentSpeed - 2.5);
-      if (this.currentSpeed <= BASE_SPEED) this.brownKnockbackDecaying = false;
+    // Decay brown knockback speed toward base (respects rogue speed upgrades)
+    const _floorSpeed = BASE_SPEED + (this._rogueSpeedBonus || 0);
+    if (this.brownKnockbackDecaying && this.currentSpeed > _floorSpeed) {
+      this.currentSpeed = Math.max(_floorSpeed, this.currentSpeed - 2.5);
+      if (this.currentSpeed <= _floorSpeed) this.brownKnockbackDecaying = false;
     }
 
     // Notify behavior of wall bounce

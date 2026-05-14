@@ -7,9 +7,9 @@
     <link rel="stylesheet" href="css/style.css" />
   </head>
   <body>
+    <!-- ── HUD (battle mode) ── -->
     <div id="hud">
       <div class="hud-row">
-        
         <div class="hud-side hud-side-left">
           <div class="hud-charge-col">
             <div id="charge-bar2-left-wrap" class="charge-wrap">
@@ -24,7 +24,6 @@
             <span id="scale-lbl-left" class="scale-lbl"></span>
           </div>
         </div>
-
         <div class="hp-wrapper">
           <div class="hp-card">
             <div class="hp-header">
@@ -55,7 +54,6 @@
             </div>
           </div>
         </div>
-
         <div class="hud-side hud-side-right">
           <div id="scale-badge-right" class="scale-badge">
             <span id="scale-val-right" class="scale-val"></span>
@@ -70,11 +68,26 @@
             </div>
           </div>
         </div>
-
       </div>
     </div>
 
-    <div id="select-screen">
+    <!-- ── Main Menu ── -->
+    <div id="main-menu">
+      <div class="menu-title">SQUARE<br>FIGHT</div>
+      <div class="menu-buttons">
+        <button class="menu-btn" onclick="SFX.uiClick(); goToSquareFight()">
+          <span class="menu-btn-title">SQUARE FIGHT</span>
+          <span class="menu-btn-sub">2-Player Battle</span>
+        </button>
+        <button class="menu-btn menu-btn-rogue" onclick="SFX.uiClick(); goToRoguelike()">
+          <span class="menu-btn-title">ROGUELIKE</span>
+          <span class="menu-btn-sub wip-badge">WIP - Solo Run</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Square Fight Select Screen ── -->
+    <div id="select-screen" style="display:none">
       <div class="sides-container">
         <div class="selection-container">
           <div id="side-p1" class="select-side" onclick="SFX.uiClick(); enterGrid(0)">
@@ -100,14 +113,29 @@
       <button id="start-fight-btn" onclick="SFX.uiClick(); startBattle()">FIGHT</button>
     </div>
 
-    <div id="win-overlay" onclick="if (window.winScreenVisible) { SFX.uiClick(); resetBattle(); }"></div>
-    <div id="win-content" onclick="if (window.winScreenVisible) { SFX.uiClick(); resetBattle(); }">
-      <div id="win-text"></div>
-      <div id="win-subtext">CLICK OR PRESS 'R' TO REENGAGE</div>
+    <!-- ── Roguelike Character Select ── -->
+    <div id="rogue-select-screen" style="display:none">
+      <div class="rogue-select-title">CHOOSE YOUR SQUARE</div>
+      <div class="rogue-grid" id="rogue-grid"></div>
     </div>
 
-    <div id="controls">
-      P1: Z (Flip X) X (Flip Y) C (Speed) | P2: J (Flip X) K (Flip Y) L (Speed) | R: Reset | Mobile: Swipe ↔ Flip X · Swipe ↕ Flip Y · Tap = Speed
+
+    <!-- ── Upgrade Screen overlay (roguelike between floors) ── -->
+    <div id="upgrade-overlay"></div>
+    <div id="upgrade-screen">
+      <div id="upgrade-title">CHOOSE AN UPGRADE</div>
+      <div id="upgrade-cards-row"></div>
+      <div id="upgrade-reroll-row">
+        <button id="upgrade-reroll-btn" onclick="SFX.uiClick(); rogueRerollUpgrades()">REROLL</button>
+        <span id="upgrade-reroll-count"></span>
+      </div>
+    </div>
+
+    <!-- ── Win / Game Over overlay ── -->
+    <div id="win-overlay" onclick="if (window.winScreenVisible) { SFX.uiClick(); onWinClick(); }"></div>
+    <div id="win-content" onclick="if (window.winScreenVisible) { SFX.uiClick(); onWinClick(); }">
+      <div id="win-text"></div>
+      <div id="win-subtext">CLICK OR PRESS 'R' TO REENGAGE</div>
     </div>
 
     <!-- Mobile on-screen controls -->
@@ -125,7 +153,8 @@
     </div>
 
     <div id="bottom-left-btns">
-      <button id="roster-btn" onclick="SFX.uiClick(); currentScreen = currentScreen === 'battle' ? 'select' : 'battle'">
+      <button id="hud-home-btn" onclick="SFX.uiClick(); goToMainMenu()">HOME</button>
+      <button id="roster-btn" onclick="SFX.uiClick(); openSquareFightSelect()">
         SQUARES
       </button>
       <button id="reset-btn" onclick="SFX.uiClick(); resetBattle()">RESET</button>
@@ -145,12 +174,15 @@
     <script src="js/collision.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/game.js"></script>
+    <script src="js/roguelike.js"></script>
 
     <script>
       canvas = document.getElementById("game");
       ctx = canvas.getContext("2d");
+      _initTouchControls(); // must run after canvas is assigned
       resize();
-      resetBattle();
+      // Start on main menu
+      showScreen("main-menu");
       loop();
     </script>
   </body>

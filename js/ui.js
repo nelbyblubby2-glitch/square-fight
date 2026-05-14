@@ -5,6 +5,8 @@
 function getChargeBar(s) {
   switch (s.def.type) {
     case "red":
+      // If rogue no-cooldown upgrade active, hide the passive CD bar entirely
+      if (s._rogueNoPassiveCD) return null;
       return {
         pct:
           s.redAbilityCD > 0
@@ -123,9 +125,16 @@ function getChargeBar(s) {
   }
 }
 
-// Returns secondary charge bar info (only used by green for burst CD), or null.
+// Returns secondary charge bar info (segments for Red counter-chase, CD for green), or null.
 function getChargeBar2(s) {
   switch (s.def.type) {
+    case "red":
+      if (!s._rogueHitTriggersChase) return null;
+      return {
+        segments: 2,
+        filled: s._hitChaseCharge || 0,
+        color: s.def.color,
+      };
     case "green":
       return {
         pct:
@@ -177,6 +186,7 @@ function updateHUD() {
     const cdFill = document.getElementById(`cd-${side}`);
 
     const currentHp = Math.max(0, s.hp);
+    const maxHp = s.maxHp || 100;
     const previewHp =
       s.poisonPreviewHp !== null
         ? s.poisonPreviewHp
@@ -186,18 +196,18 @@ function updateHUD() {
 
     nameEl.innerText = s.def.name;
     nameEl.style.color = s.def.color;
-    valEl.innerText = `${Math.max(0, Math.ceil(s.hp))}/100`;
+    valEl.innerText = `${Math.max(0, Math.ceil(s.hp))}/${maxHp}`;
 
-    fill.style.width = `${previewHp}%`;
+    fill.style.width = `${(previewHp / maxHp) * 100}%`;
     fill.style.backgroundColor = s.def.color;
     fill.style.boxShadow = `0 0 12px ${s.def.color}`;
 
-    poisonFill.style.width = `${currentHp}%`;
+    poisonFill.style.width = `${(currentHp / maxHp) * 100}%`;
     poisonFill.style.backgroundColor = s.def.color;
     poisonFill.style.opacity = s.poisonTimer > 0 ? "0.45" : "0";
 
     if (bleedFill) {
-      bleedFill.style.width = `${currentHp}%`;
+      bleedFill.style.width = `${(currentHp / maxHp) * 100}%`;
       bleedFill.style.backgroundColor = s.def.color;
       bleedFill.style.opacity = s.bleedTimer > 0 ? "0.45" : "0";
     }
@@ -273,14 +283,57 @@ function updateHUD() {
       chargeWrap.style.opacity = "0";
     }
 
-    // -- Secondary charge bar (green burst CD) — opacity-toggled --------------
+    // -- Secondary charge bar — supports both segments and fill modes ----------
     const charge2Wrap = document.getElementById(`charge-bar2-${side}-wrap`);
     const chargeInfo2 = getChargeBar2(s);
     if (charge2Wrap) {
-      if (chargeInfo2) {
+      if (chargeInfo2 && chargeInfo2.segments) {
+        // Segmented mode for secondary bar
+        if (charge2Wrap.dataset.mode !== "seg2_" + chargeInfo2.segments) {
+          charge2Wrap.innerHTML = "";
+          charge2Wrap.dataset.mode = "seg2_" + chargeInfo2.segments;
+          charge2Wrap.style.overflow = "visible";
+          charge2Wrap.style.flexDirection = "column";
+          charge2Wrap.style.justifyContent = "center";
+          charge2Wrap.style.alignItems = "center";
+          charge2Wrap.style.gap = "4px";
+          charge2Wrap.style.background = "none";
+          charge2Wrap.style.borderRadius = "5px";
+          charge2Wrap.style.padding = "2px";
+          charge2Wrap.style.boxSizing = "border-box";
+          for (let i = 0; i < chargeInfo2.segments; i++) {
+            const seg = document.createElement("div");
+            seg.style.cssText =
+              "width:10px;height:12px;border-radius:3px;background:rgba(255,255,255,0.1);transition:none;flex-shrink:0;";
+            charge2Wrap.appendChild(seg);
+          }
+        }
+        const segs2 = charge2Wrap.children;
+        for (let i = 0; i < chargeInfo2.segments; i++) {
+          const filled = i < chargeInfo2.filled;
+          segs2[chargeInfo2.segments - 1 - i].style.backgroundColor = filled
+            ? chargeInfo2.color
+            : "rgba(255, 255, 255, 0.25)";
+          segs2[chargeInfo2.segments - 1 - i].style.boxShadow = filled
+            ? `0 0 6px ${chargeInfo2.color}`
+            : "none";
+          segs2[chargeInfo2.segments - 1 - i].style.opacity = filled ? "1" : "0.4";
+        }
+        charge2Wrap.style.opacity = "1";
+      } else if (chargeInfo2) {
+        // Fill mode
         if (charge2Wrap.dataset.mode !== "fill2") {
           charge2Wrap.innerHTML = "";
           charge2Wrap.dataset.mode = "fill2";
+          charge2Wrap.style.overflow = "hidden";
+          charge2Wrap.style.flexDirection = "column-reverse";
+          charge2Wrap.style.justifyContent = "";
+          charge2Wrap.style.alignItems = "";
+          charge2Wrap.style.gap = "";
+          charge2Wrap.style.background = "rgba(255,255,255,0.1)";
+          charge2Wrap.style.borderRadius = "";
+          charge2Wrap.style.padding = "";
+          charge2Wrap.style.boxSizing = "";
           const fb2 = document.createElement("div");
           fb2.className = "charge-fill";
           charge2Wrap.appendChild(fb2);
@@ -363,4 +416,10 @@ function renderSelectUI() {
 
 function enterGrid(idx) {
   document.getElementById(`side-p${idx + 1}`).classList.add("selecting");
+}
+
+function openSquareFightSelect() {
+  currentScreen = "select";
+  showScreen("select-screen");
+  activeMode = "squarefight-select"; // must come AFTER showScreen(), which overwrites activeMode
 }
