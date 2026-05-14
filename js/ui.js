@@ -342,6 +342,7 @@ function renderSelectUI() {
         item.style.backgroundColor = squareDefs[sqId].color;
         item.onclick = (e) => {
           e.stopPropagation();
+          SFX.uiClick();
           selectedIds[idx] = Number(sqId);
           document
             .getElementById(`side-p${idx + 1}`)

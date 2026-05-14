@@ -26,15 +26,17 @@ function getBeamWallEnd(sx, sy, tx, ty) {
 
   if (dx !== 0) {
     const tLeft  = (-margin - sx) / dx;
-    if (tLeft  > 0) candidates.push({ t: tLeft,  x: -margin,              y: sy + dy * tLeft  });
-    const tRight = (canvas.width + margin - sx) / dx;
-    if (tRight > 0) candidates.push({ t: tRight, x: canvas.width + margin, y: sy + dy * tRight });
+    if (tLeft  > 0) candidates.push({ t: tLeft,  x: -margin, y: sy + dy * tLeft  });
+    // Change canvas.width to VIRTUAL_WIDTH
+    const tRight = (VIRTUAL_WIDTH + margin - sx) / dx; 
+    if (tRight > 0) candidates.push({ t: tRight, x: VIRTUAL_WIDTH + margin, y: sy + dy * tRight });
   }
   if (dy !== 0) {
     const tTop    = (-margin - sy) / dy;
-    if (tTop    > 0) candidates.push({ t: tTop,    x: sx + dx * tTop,    y: -margin               });
-    const tBottom = (canvas.height + margin - sy) / dy;
-    if (tBottom > 0) candidates.push({ t: tBottom, x: sx + dx * tBottom, y: canvas.height + margin });
+    if (tTop    > 0) candidates.push({ t: tTop,    x: sx + dx * tTop,    y: -margin });
+    // Change canvas.height to VIRTUAL_HEIGHT
+    const tBottom = (VIRTUAL_HEIGHT + margin - sy) / dy;
+    if (tBottom > 0) candidates.push({ t: tBottom, x: sx + dx * tBottom, y: VIRTUAL_HEIGHT + margin });
   }
 
   if (!candidates.length) return { x: tx, y: ty };

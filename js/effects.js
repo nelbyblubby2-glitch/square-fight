@@ -10,6 +10,13 @@ class FloatingText {
     this.life  = 1.0;
     this.vx    = (Math.random() - 0.5) * 2;
     this.vy    = -2.5;
+
+    // Trigger SFX for every number popup
+    if (String(text).startsWith("+")) {
+      SFX.heal();
+    } else {
+      SFX.takeDamage();
+    }
   }
 
   update() {

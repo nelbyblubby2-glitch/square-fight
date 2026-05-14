@@ -10,9 +10,13 @@ const FREEZE_DURATION  = 4;
 const HIT_IMMUNITY     = 15;
 const GRAY_SPEED       = 3.8;   // slightly faster than BASE_SPEED (3.2)
 
+// ── Virtual Resolution ──
+const VIRTUAL_WIDTH = 2560;
+const VIRTUAL_HEIGHT = 1440;
+
 // ── Character definitions ────────────────────────────────────────────────────
 const squareDefs = {
-  1:  { name: "Red",    color: "#ff3e3e", type: "red",    desc: "Every direct collision grants +1 Permanent Damage and +1 Power to the Red square." },
+  1:  { name: "Red",    color: "#ff3e3e", type: "red",    desc: "Every direct collision grants +1 Clash Damage." },
   2:  { name: "Green",  color: "#00ff44", type: "green",  desc: "Shoots projectiles every 3s. Every hit landed permanently increases the next burst by +1 projectile." },
   3:  { name: "Blue",   color: "#3ea8ff", type: "blue",   desc: "When hit, gain +4 HP, +8px Size, and +1 Damage. (Cooldown: 4s)" },
   4:  { name: "Yellow", color: "#ffec3e", type: "yellow", desc: "Gain speed per bounce. Max starting dmg is 5. Each hit on enemy permanently increases your speed cap." },

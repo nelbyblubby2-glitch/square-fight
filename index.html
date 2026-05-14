@@ -2,25 +2,26 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Square Fight</title>
     <link rel="stylesheet" href="css/style.css" />
   </head>
   <body>
     <div id="hud">
       <div class="hud-row">
+        
         <div class="hud-side hud-side-left">
+          <div class="hud-charge-col">
+            <div id="charge-bar2-left-wrap" class="charge-wrap">
+              <div id="charge-bar2-left" class="charge-fill"></div>
+            </div>
+            <div id="charge-bar-left-wrap" class="charge-wrap">
+              <div id="charge-bar-left" class="charge-fill"></div>
+            </div>
+          </div>
           <div id="scale-badge-left" class="scale-badge">
             <span id="scale-val-left" class="scale-val"></span>
             <span id="scale-lbl-left" class="scale-lbl"></span>
-          </div>
-        </div>
-        <div class="hud-charge-col">
-          <div id="charge-bar-left-wrap" class="charge-wrap">
-            <div id="charge-bar-left" class="charge-fill"></div>
-          </div>
-          <div id="charge-bar2-left-wrap" class="charge-wrap">
-            <div id="charge-bar2-left" class="charge-fill"></div>
           </div>
         </div>
 
@@ -56,6 +57,10 @@
         </div>
 
         <div class="hud-side hud-side-right">
+          <div id="scale-badge-right" class="scale-badge">
+            <span id="scale-val-right" class="scale-val"></span>
+            <span id="scale-lbl-right" class="scale-lbl"></span>
+          </div>
           <div class="hud-charge-col">
             <div id="charge-bar-right-wrap" class="charge-wrap">
               <div id="charge-bar-right" class="charge-fill"></div>
@@ -64,18 +69,15 @@
               <div id="charge-bar2-right" class="charge-fill"></div>
             </div>
           </div>
-          <div id="scale-badge-right" class="scale-badge">
-            <span id="scale-val-right" class="scale-val"></span>
-            <span id="scale-lbl-right" class="scale-lbl"></span>
-          </div>
         </div>
+
       </div>
     </div>
 
     <div id="select-screen">
       <div class="sides-container">
         <div class="selection-container">
-          <div id="side-p1" class="select-side" onclick="enterGrid(0)">
+          <div id="side-p1" class="select-side" onclick="SFX.uiClick(); enterGrid(0)">
             <span class="side-label">PLAYER 1</span>
             <div id="prev-p1" class="preview-square"></div>
             <div id="name-label-p1" class="square-name-label"></div>
@@ -84,7 +86,7 @@
               <span class="skill-desc">---</span>
             </div>
           </div>
-          <div id="side-p2" class="select-side" onclick="enterGrid(1)">
+          <div id="side-p2" class="select-side" onclick="SFX.uiClick(); enterGrid(1)">
             <span class="side-label">PLAYER 2</span>
             <div id="prev-p2" class="preview-square"></div>
             <div id="name-label-p2" class="square-name-label"></div>
@@ -95,37 +97,43 @@
           </div>
         </div>
       </div>
-      <button id="start-fight-btn" onclick="startBattle()">FIGHT</button>
+      <button id="start-fight-btn" onclick="SFX.uiClick(); startBattle()">FIGHT</button>
     </div>
 
-    <div
-      id="win-overlay"
-      onclick="if (window.winScreenVisible) resetBattle();"
-    ></div>
-    <div id="win-content" onclick="if (window.winScreenVisible) resetBattle();">
+    <div id="win-overlay" onclick="if (window.winScreenVisible) { SFX.uiClick(); resetBattle(); }"></div>
+    <div id="win-content" onclick="if (window.winScreenVisible) { SFX.uiClick(); resetBattle(); }">
       <div id="win-text"></div>
       <div id="win-subtext">CLICK OR PRESS 'R' TO REENGAGE</div>
     </div>
 
     <div id="controls">
-      P1: Z (Chase) X (Speed) C (Stop) | P2: J (Chase) K (Speed) L (Stop) | R:
-      Reset
+      P1: Z (Flip X) X (Flip Y) C (Speed) | P2: J (Flip X) K (Flip Y) L (Speed) | R: Reset | Mobile: Swipe ↔ Flip X · Swipe ↕ Flip Y · Tap = Speed
+    </div>
+
+    <!-- Mobile on-screen controls -->
+    <div id="mobile-controls">
+      <div class="mobile-player-btns" id="mobile-p1">
+        <button class="mob-btn" id="mob-p1-flip" ontouchstart="event.preventDefault(); SFX.uiClick(); _mobileAction(0,'flip')" onclick="SFX.uiClick(); _mobileAction(0,'flip')">FLIP</button>
+        <button class="mob-btn" id="mob-p1-chase" ontouchstart="event.preventDefault(); SFX.uiClick(); _mobileAction(0,'chase')" onclick="SFX.uiClick(); _mobileAction(0,'chase')">CHASE</button>
+        <button class="mob-btn" id="mob-p1-speed" ontouchstart="event.preventDefault(); SFX.uiClick(); _mobileAction(0,'speed')" onclick="SFX.uiClick(); _mobileAction(0,'speed')">SPEED</button>
+      </div>
+      <div class="mobile-player-btns" id="mobile-p2">
+        <button class="mob-btn" id="mob-p2-flip" ontouchstart="event.preventDefault(); SFX.uiClick(); _mobileAction(1,'flip')" onclick="SFX.uiClick(); _mobileAction(1,'flip')">FLIP</button>
+        <button class="mob-btn" id="mob-p2-chase" ontouchstart="event.preventDefault(); SFX.uiClick(); _mobileAction(1,'chase')" onclick="SFX.uiClick(); _mobileAction(1,'chase')">CHASE</button>
+        <button class="mob-btn" id="mob-p2-speed" ontouchstart="event.preventDefault(); SFX.uiClick(); _mobileAction(1,'speed')" onclick="SFX.uiClick(); _mobileAction(1,'speed')">SPEED</button>
+      </div>
     </div>
 
     <div id="bottom-left-btns">
-      <button
-        id="roster-btn"
-        onclick="
-          currentScreen = currentScreen === 'battle' ? 'select' : 'battle'
-        "
-      >
-        CHANGE SQUARES
+      <button id="roster-btn" onclick="SFX.uiClick(); currentScreen = currentScreen === 'battle' ? 'select' : 'battle'">
+        SQUARES
       </button>
-      <button id="reset-btn" onclick="resetBattle()">RESET BATTLE</button>
+      <button id="reset-btn" onclick="SFX.uiClick(); resetBattle()">RESET</button>
     </div>
 
     <canvas id="game"></canvas>
 
+    <script src="js/sfx.js"></script>
     <script src="js/constants.js"></script>
     <script src="js/state.js"></script>
     <script src="js/utils.js"></script>

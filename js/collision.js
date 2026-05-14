@@ -61,8 +61,8 @@ function resolveCollision(s1, s2) {
   if (s1.grayFreezeTimer > 0) s1.grayFreezeTimer = 0;
   if (s2.grayFreezeTimer > 0) s2.grayFreezeTimer = 0;
   // Gold body deals 2 dmg on direct collision
-  if (s2.def.type === "gold") actual_d1 = Math.max(actual_d1, 2);
-  if (s1.def.type === "gold") actual_d2 = Math.max(actual_d2, 2);
+  if (s2.def.type === "gold") actual_d1 = Math.max(actual_d1, 3);
+  if (s1.def.type === "gold") actual_d2 = Math.max(actual_d2, 3);
   s1.hp -= actual_d1;  s2.hp -= actual_d2;
   s1.onTakeDamage();  s2.onTakeDamage();
   s1.onHitEnemy();    s2.onHitEnemy();

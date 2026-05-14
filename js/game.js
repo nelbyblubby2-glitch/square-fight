@@ -19,7 +19,7 @@ function resetBattle() {
   gameOver        = false;
   freezeTimer     = 0;
   winDelayTimer   = 0;
-  winScreenVisible = false;
+  window.winScreenVisible = false;
   document.getElementById("win-overlay").style.display = "none";
   document.getElementById("win-content").style.display = "none";
 }
@@ -36,7 +36,7 @@ function loop() {
   if (freezeTimer > 0)
     ctx.translate((Math.random() - 0.5) * 5, (Math.random() - 0.5) * 5);
 
-  ctx.fillStyle = "rgba(0, 0, 0, 0.15)";
+  ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
   ctx.strokeRect(arena.x, arena.y, arena.w, arena.h);
@@ -324,9 +324,9 @@ function _checkWin() {
 }
 
 function _showWinScreen() {
-  if (!gameOver || winScreenVisible) return;
+  if (!gameOver || window.ScreenVisible) return;
   if (winDelayTimer > 0) { winDelayTimer--; return; }
-  winScreenVisible = true;
+  window.winScreenVisible = true;
   document.getElementById("win-overlay").style.display = "block";
   document.getElementById("win-content").style.display = "flex";
   document.getElementById("win-text").innerText = winnerText;
@@ -350,28 +350,98 @@ function _updateLimeProjectiles() {
   }
 }
 
+// ── Helper: apply a player action ────────────────────────────────────────────
+function _applyAction(square, action) {
+  if (!square || square.actionCooldown > 0) return;
+  if (action === "flip") {
+    square.vx = -square.vx;
+    square.vy = -square.vy;
+    square.actionCooldown = ACTION_COOLDOWN;
+  } else if (action === "chase") {
+    // On next wall bounce, aim at the opponent
+    square.aimNext = true;
+    square.actionCooldown = ACTION_COOLDOWN;
+  } else if (action === "speed") {
+    square.speedBoostTimer = 90;
+    square.actionCooldown = ACTION_COOLDOWN;
+  }
+}
+
+// ── Mobile button action helper (called from HTML ontouchstart/onclick) ────────
+function _mobileAction(playerIdx, action) {
+  if (currentScreen !== "battle" || gameOver) return;
+  _applyAction(squares[playerIdx], action);
+}
+
 // ── Keyboard input ────────────────────────────────────────────────────────────
 window.addEventListener("keydown", (e) => {
   const key = e.key.toLowerCase();
-  if (key === "r") resetBattle();
-  if (key === "0") currentScreen = currentScreen === "battle" ? "select" : "battle";
+  if (key === "r") { SFX.uiClick(); resetBattle(); }
+  if (key === "0") { SFX.uiClick(); currentScreen = currentScreen === "battle" ? "select" : "battle"; }
 
   if (currentScreen !== "battle" || gameOver) return;
 
-  const p1 = squares[0];
-  if (p1 && p1.actionCooldown <= 0) {
-    if (key === "z") { p1.aimNext = true;       p1.actionCooldown = ACTION_COOLDOWN; }
-    if (key === "x") { p1.speedBoostTimer = 90;  p1.actionCooldown = ACTION_COOLDOWN; }
-    if (key === "c") { p1.stopTimer = 120;        p1.actionCooldown = ACTION_COOLDOWN; }
+  // P1: Z = flip, X = chase, C = speed
+  if (key === "z") _applyAction(squares[0], "flip");
+  if (key === "x") _applyAction(squares[0], "chase");
+  if (key === "c") _applyAction(squares[0], "speed");
+
+  // P2: J = flip, K = chase, L = speed
+  if (key === "j") _applyAction(squares[1], "flip");
+  if (key === "k") _applyAction(squares[1], "chase");
+  if (key === "l") _applyAction(squares[1], "speed");
+});
+
+// ── Touch / swipe input ───────────────────────────────────────────────────────
+(function () {
+  // We split the screen in half: left half = P1, right half = P2
+  // Swipe left/right  → flip X
+  // Swipe up/down     → flip Y
+  // Tap (no swipe)    → stop
+  const SWIPE_THRESHOLD = 30; // px
+
+  let touches = {}; // track each touch by identifier
+
+  function playerIndexForX(x) {
+    return x < window.innerWidth / 2 ? 0 : 1;
   }
 
-  const p2 = squares[1];
-  if (p2 && p2.actionCooldown <= 0) {
-    if (key === "j") { p2.aimNext = true;       p2.actionCooldown = ACTION_COOLDOWN; }
-    if (key === "k") { p2.speedBoostTimer = 90;  p2.actionCooldown = ACTION_COOLDOWN; }
-    if (key === "l") { p2.stopTimer = 120;        p2.actionCooldown = ACTION_COOLDOWN; }
-  }
-});
+  canvas.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    for (const t of e.changedTouches) {
+      touches[t.identifier] = { startX: t.clientX, startY: t.clientY, playerIdx: playerIndexForX(t.clientX) };
+    }
+  }, { passive: false });
+
+  canvas.addEventListener("touchend", (e) => {
+    e.preventDefault();
+    if (currentScreen !== "battle" || gameOver) { touches = {}; return; }
+    for (const t of e.changedTouches) {
+      const start = touches[t.identifier];
+      if (!start) continue;
+      delete touches[t.identifier];
+
+      const dx = t.clientX - start.startX;
+      const dy = t.clientY - start.startY;
+      const sq = squares[start.playerIdx];
+
+      if (Math.abs(dx) < SWIPE_THRESHOLD && Math.abs(dy) < SWIPE_THRESHOLD) {
+        // Tap → speed
+        _applyAction(sq, "speed");
+      } else if (Math.abs(dx) >= Math.abs(dy)) {
+        // Horizontal swipe → flip
+        _applyAction(sq, "flip");
+      } else {
+        // Vertical swipe → chase
+        _applyAction(sq, "chase");
+      }
+    }
+  }, { passive: false });
+
+  canvas.addEventListener("touchcancel", (e) => {
+    for (const t of e.changedTouches) delete touches[t.identifier];
+  }, { passive: false });
+})();
 
 window.addEventListener("resize", resize);
 
