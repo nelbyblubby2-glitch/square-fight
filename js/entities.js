@@ -8,6 +8,7 @@ class Projectile {
     this.isIndigo  = this.mainOwner.def.type === "indigo";
     this.isPink    = this.mainOwner.def.type === "pink";
     this.isScarlet = this.mainOwner.def.type === "scarlet";
+    this.isGreenBounce = this.mainOwner.def.type === "green" && (this.mainOwner._rogueProjectileBounce > 0);
 
     let targetX, targetY;
     if (this.isPink) {
@@ -21,7 +22,16 @@ class Projectile {
     const dx   = targetX - this.x;
     const dy   = targetY - this.y;
     const dist = Math.hypot(dx, dy) || 1;
-    const speed = (this.mainOwner.def.type === "green" || this.mainOwner.def.type === "scarlet") ? 15 : PROJECTILE_SPEED;
+    const isGreen = this.mainOwner.def.type === "green";
+    let speed;
+    if (isGreen) {
+      // Rogue: slow by default; Sharpened Shot restores normal speed
+      speed = this.mainOwner._rogueFastProjectile ? 15 : (this.mainOwner._rogueSlowProjectile ? PROJECTILE_SPEED : 15);
+    } else if (this.mainOwner.def.type === "scarlet") {
+      speed = 15;
+    } else {
+      speed = PROJECTILE_SPEED;
+    }
 
     this.vx          = (dx / dist) * speed;
     this.vy          = (dy / dist) * speed;
@@ -65,6 +75,14 @@ class Projectile {
     }
 
     if (this.mainOwner.def.type === "green") {
+      // Rogue bounce: reflect off walls like pink (infinite) when upgrade active
+      if (this.isGreenBounce) {
+        if (this.x <= arena.x)           { this.vx =  Math.abs(this.vx); }
+        if (this.x >= arena.x + arena.w) { this.vx = -Math.abs(this.vx); }
+        if (this.y <= arena.y)           { this.vy =  Math.abs(this.vy); }
+        if (this.y >= arena.y + arena.h) { this.vy = -Math.abs(this.vy); }
+      }
+
       const density = 10;
       for (let i = 0; i < density; i++) {
         const t    = i / density;
@@ -300,6 +318,7 @@ class BrownSpike {
           s.y < hb.y + hb.h && s.y + s.size > hb.y) {
         s.hp -= 1;
         s.onTakeDamage();
+        SFX.takeDamage();
         this.hitCooldown = 40;
         floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, "1", "#c07840"));
         spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, "#c07840", 5, 1, 3, 4);
@@ -428,6 +447,7 @@ class LimeProjectile {
         const dmg = this.pullWallBounces;
         target.hp -= dmg;
         target.onTakeDamage();
+        SFX.takeDamage();
         floatingNumbers.push(new FloatingNumber(target.x + this.targetOriginalSize / 2, target.y, dmg.toString(), "#aaff00"));
         spawnSquareParticles(target.x + target.size / 2, target.y + target.size / 2, "#aaff00", 6, 1, 3, 5);
         triggerHitFreeze();
@@ -637,6 +657,7 @@ class MistProjectile {
           this.y > s.y && this.y < s.y + s.size) {
         s.hp -= 1;
         s.onTakeDamage();
+        SFX.takeDamage();
         floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, "1", "#ffffff"));
         spawnSquareParticles(this.x, this.y, "#ddefff", 5, 1, 2, 4);
         triggerHitFreeze();

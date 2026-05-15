@@ -80,7 +80,7 @@ function goToSquareFight() {
 }
 
 // IDs that are unlocked for roguelike. Add more IDs here as you unlock them.
-const ROGUE_UNLOCKED_IDS = new Set([1]);
+const ROGUE_UNLOCKED_IDS = new Set([1, 2]);
 
 function buildRogueSelectGrid() {
   const grid = document.getElementById("rogue-grid");
@@ -314,8 +314,8 @@ function _updateProjectiles() {
       continue;
     }
 
-    // Out of bounds (non-pink)
-    if (!p.isPink && (p.x < arena.x || p.x > arena.x + arena.w || p.y < arena.y || p.y > arena.y + arena.h)) {
+    // Out of bounds (non-pink, non-bouncing-green)
+    if (!p.isPink && !p.isGreenBounce && (p.x < arena.x || p.x > arena.x + arena.w || p.y < arena.y || p.y > arena.y + arena.h)) {
       projectiles.splice(pi, 1);
       continue;
     }
@@ -326,9 +326,11 @@ function _updateProjectiles() {
     squares.forEach((s) => {
       if (s === p.mainOwner || hit || hookedTargets.has(s)) return;
       if (p.x > s.x && p.x < s.x + s.size && p.y > s.y && p.y < s.y + s.size) {
-        const pdmg = p.isIndigo || p.isPink ? 1 : 1 + p.owner.bonusDamage;
+        const rogueBonus = p.mainOwner._rogueProjectileDamageBonus || 0;
+        const pdmg = p.isIndigo || p.isPink ? 1 : 1 + p.owner.bonusDamage + rogueBonus;
         s.hp -= pdmg;
         s.onTakeDamage();
+        SFX.takeDamage();
         floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, pdmg, "#ffffff"));
 
         // Scarlet bullet: burst all bleed stacks instantly
@@ -336,6 +338,7 @@ function _updateProjectiles() {
           const burstDmg = s.burstBleed();
           if (burstDmg > 0) {
             s.hp -= burstDmg;
+            SFX.takeDamage();
             floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y - 16, burstDmg, "#cc1a1a"));
             spawnSquareParticles(p.x, p.y, "#cc1a1a", 10, 1, 4, 6);
             triggerHitFreeze();
@@ -384,7 +387,6 @@ function _updateProjectiles() {
           c.hp = 0;
           const cloneColor = c instanceof Clone ? "#87ceeb" : "#6C5CE7";
           spawnSquareParticles(c.x + c.size / 2, c.y + c.size / 2, cloneColor, 8, 1, 4, 6);
-          floatingNumbers.push(new FloatingNumber(c.x + c.size / 2, c.y, "1", "#ffffff"));
         }
       }
     }
@@ -423,6 +425,7 @@ function _updateGiantSquares() {
         s.hp -= damage;
         g.hitList.push(s);
         if (s.onTakeDamage) s.onTakeDamage();
+        if (!isClone) SFX.takeDamage();
         floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, damage.toString(), "#ffffff"));
         spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, g.owner.def.color, 8, 1, 3, 5);
         if (!isClone) triggerHitFreeze();
@@ -464,8 +467,10 @@ function _checkWin() {
 
   // Save rogue stats RIGHT NOW before any reset can happen
   if (activeMode === "rogue-run" && rogueState && squares.length >= 2) {
-    rogueState.hp         = Math.max(0, Math.ceil(squares[0].hp));
-    rogueState.clashBonus = Math.max(0, squares[0].bonusDamage - (rogueState.power - 1));
+    rogueState.hp = Math.max(0, Math.ceil(squares[0].hp));
+    if (rogueState.charId === 1) {
+      rogueState.clashBonus = Math.max(0, squares[0].bonusDamage - (rogueState.power - 1));
+    }
   }
 
   const loser  = squares.find((s) => s.hp <= 0);
@@ -479,7 +484,7 @@ function _checkWin() {
       const isLastFloor = floor >= rogueEnemies.length;
       winnerText = isLastFloor ? "FLOOR CLEARED!" : `FLOOR ${floor} CLEARED!`;
       document.getElementById("win-subtext").innerText = isLastFloor
-        ? "CLICK TO SEE RESULTS"
+        ? "CLICK TO RETURN TO MENU"
         : `CLICK TO ADVANCE TO FLOOR ${nextFloor}`;
     } else {
       winnerText = "YOU DIED";

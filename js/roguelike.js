@@ -16,9 +16,17 @@ const rogueDefs = {
     color: "#ff3e3e",
     type: "red",
     startHP: 80,
-    startPower: 1,        // power adds to dmg multiplier
+    startPower: 1,
     passiveDesc: "Every clash → +1 permanent damage (Cooldown: 3s)",
-  }
+  },
+  2: {
+    name: "Green",
+    color: "#00ff44",
+    type: "green",
+    startHP: 80,
+    startPower: 1,
+    passiveDesc: "Shoot projectiles every 3s. Every 3 hits → +1 shot.",
+  },
 };
 
 // Enemy progression per floor
@@ -152,6 +160,20 @@ function _applyRogueStats(enemyDef) {
     player._rogueEmergencyHeal    = rogueState.emergencyHeal || false;
     player._rogueEmergencyHealUsed = false; // reset each floor
     player._rogueClashHealAmt     = rogueState.clashHeal || 0;
+    player._rogueLowHpDoublePassive = rogueState.lowHpDoublePassive || false;
+    player._rogueBounceEmpowerThreshold = rogueState.bounceEmpowerThreshold || 0;
+    player._rogueBounceCount      = 0;  // reset each floor
+    player._rogueBounceEmpowered  = false;
+  }
+
+  // Patch Green's rogue upgrades
+  if (rogueState.charId === 2) {
+    player._rogueSlowProjectile        = true;
+    player._rogueFastProjectile        = rogueState.fastProjectile || false;
+    player._rogueProjectileBounce      = rogueState.projectileBounceBonus || 0;
+    player._rogueProjectileDamageBonus = rogueState.projectileDamageBonus || 0;
+    player.projectileCount = 1 + (rogueState.projectileCountBonus || 0);
+    // Don't touch bonusDamage — that would affect clash damage too
   }
 }
 
@@ -167,7 +189,7 @@ const charUpgradePools = {
       id: "red_hp",
       name: "+10 Max HP",
       desc: "Increase your maximum HP by 10.",
-      icon: "HP",
+      icon: "",
       limit: null,
       apply(state) {
         state.maxHp += 10;
@@ -177,7 +199,7 @@ const charUpgradePools = {
       id: "red_clash_dmg",
       name: "+1 Clash Damage",
       desc: "Your clashes permanently deal 1 more damage.",
-      icon: "DMG",
+      icon: "",
       limit: null,
       apply(state) {
         state.permClashBonus = (state.permClashBonus || 0) + 1;
@@ -187,7 +209,7 @@ const charUpgradePools = {
       id: "red_size",
       name: "Increase size by 20%.",
       desc: "Your square grows 20% larger.",
-      icon: "SZ",
+      icon: "",
       limit: null,
       apply(state) {
         state.sizeBonus = (state.sizeBonus || 0) + 0.2;
@@ -197,7 +219,7 @@ const charUpgradePools = {
       id: "red_passive_bonus",
       name: "Passive +1 bonus.",
       desc: "Your passive now grants +2 clash damage per clash instead of +1.",
-      icon: "PSV",
+      icon: "",
       limit: 1,
       apply(state) {
         state.passiveClashPerHit = (state.passiveClashPerHit || 1) + 1;
@@ -207,7 +229,7 @@ const charUpgradePools = {
       id: "red_no_cd",
       name: "Remove passive cooldown.",
       desc: "Your clash passive triggers every clash with no cooldown.",
-      icon: "CD",
+      icon: "",
       limit: 1,
       apply(state) {
         state.noPassiveCooldown = true;
@@ -217,7 +239,7 @@ const charUpgradePools = {
       id: "red_hit_chase",
       name: "Counter-chase on hit.",
       desc: "When you take damage, activate chase regardless of cooldown. Does not trigger cooldown.",
-      icon: "RCT",
+      icon: "",
       limit: 1,
       apply(state) {
         state.hitTriggersChase = true;
@@ -227,7 +249,7 @@ const charUpgradePools = {
       id: "red_speed",
       name: "Increase speed by 0.5.",
       desc: "Your base movement speed increases by 0.5.",
-      icon: "SPD",
+      icon: "",
       limit: null,
       apply(state) {
         state.speedBonus = (state.speedBonus || 0) + 0.5;
@@ -237,7 +259,7 @@ const charUpgradePools = {
       id: "red_clash_size_streak",
       name: "Clash Size Streak",
       desc: "Every consecutive clash within 2s increases your clash size by 20% temporarily.",
-      icon: "STK",
+      icon: "",
       limit: 1,
       apply(state) {
         state.clashSizeStreak = true;
@@ -247,7 +269,7 @@ const charUpgradePools = {
       id: "red_passive_on_hit",
       name: "Reactive Passive",
       desc: "Your clash passive also triggers when you take damage.",
-      icon: "RXN",
+      icon: "",
       limit: 1,
       apply(state) {
         state.passiveOnHit = true;
@@ -257,7 +279,7 @@ const charUpgradePools = {
       id: "red_speed_on_big_clash",
       name: "Clash Burst",
       desc: "When dealing clash damage above 10, increase speed by 3 for 2s.",
-      icon: "BST",
+      icon: "",
       limit: 1,
       apply(state) {
         state.speedOnBigClash = true;
@@ -267,7 +289,7 @@ const charUpgradePools = {
       id: "red_emergency_heal",
       name: "Emergency Heal",
       desc: "When HP is at or below 20, heal +20 HP. Triggers once per fight.",
-      icon: "EMG",
+      icon: "",
       limit: 1,
       apply(state) {
         state.emergencyHeal = true;
@@ -277,10 +299,86 @@ const charUpgradePools = {
       id: "red_clash_heal",
       name: "Clash Heal",
       desc: "On every clash, heal +1 HP.",
-      icon: "CLH",
+      icon: "",
       limit: 2,
       apply(state) {
         state.clashHeal = (state.clashHeal || 0) + 1;
+      },
+    },
+    {
+      id: "red_low_hp_double_passive",
+      name: "Desperate Power",
+      desc: "While HP is below 30, your passive gain is doubled.",
+      icon: "",
+      limit: 1,
+      apply(state) {
+        state.lowHpDoublePassive = true;
+      },
+    },
+    {
+      id: "red_bounce_empower",
+      name: "Bounce Empower",
+      desc: "Every 8th/7th/6th bounce (hitting enemy or wall) empowers your next clash for +10 damage.",
+      icon: "",
+      limit: 3,
+      apply(state) {
+        // Each pick: start at 8, reduce by 1 per pick (8 → 7 → 6)
+        state.bounceEmpowerPicks = (state.bounceEmpowerPicks || 0) + 1;
+        state.bounceEmpowerThreshold = 9 - state.bounceEmpowerPicks; // 8, 7, 6
+      },
+    },
+  ],
+
+  // ── GREEN ──
+  2: [
+    {
+      id: "green_hp",
+      name: "+10 Max HP",
+      desc: "Increase your maximum HP by 10.",
+      icon: "",
+      limit: null,
+      apply(state) {
+        state.maxHp += 10;
+      },
+    },
+    {
+      id: "green_speed",
+      name: "+0.5 Speed",
+      desc: "Your base movement speed increases by 0.5.",
+      icon: "",
+      limit: null,
+      apply(state) {
+        state.speedBonus = (state.speedBonus || 0) + 0.5;
+      },
+    },
+    {
+      id: "green_proj_bounce",
+      name: "Projectile Bounce",
+      desc: "Your projectiles bounce off walls.",
+      icon: "",
+      limit: 1,
+      apply(state) {
+        state.projectileBounceBonus = (state.projectileBounceBonus || 0) + 1;
+      },
+    },
+    {
+      id: "green_proj_damage_speed",
+      name: "Sharpened Shot",
+      desc: "Projectiles deal +1 damage.",
+      icon: "",
+      limit: 1,
+      apply(state) {
+        state.projectileDamageBonus = (state.projectileDamageBonus || 0) + 1;
+      },
+    },
+    {
+      id: "green_proj_count",
+      name: "+1 Projectile",
+      desc: "Fire one additional projectile per burst.",
+      icon: "",
+      limit: null,
+      apply(state) {
+        state.projectileCountBonus = (state.projectileCountBonus || 0) + 1;
       },
     },
   ],
@@ -415,7 +513,10 @@ function rogueOnWin() {
     // Save current HP before upgrade screen (don't reset yet)
 
     if (rogueState.floor > rogueEnemies.length) {
-      _showRogueVictory();
+      // Run complete — go straight to main menu
+      rogueState = null;
+      window._rogueRunComplete = true;
+      goToMainMenu();
     } else {
       // Show upgrade screen before advancing
       _showUpgradeScreen();
@@ -435,11 +536,4 @@ function _advanceToNextFloor() {
   startRogueFloor();
 }
 
-function _showRogueVictory() {
-  document.getElementById("win-text").innerText  = "YOU CLEARED THE ROGUELIKE!";
-  document.getElementById("win-subtext").innerText = "CLICK TO RETURN TO MENU";
-  document.getElementById("win-overlay").style.display = "block";
-  document.getElementById("win-content").style.display = "flex";
-  window.winScreenVisible = true;
-  window._rogueRunComplete = true;
-}
+

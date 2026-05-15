@@ -12,6 +12,15 @@ registerBehavior("red", {
   updateSkill(s) {
     if (s.redAbilityCD > 0) s.redAbilityCD--;
 
+    // Chase charge: fire aimNext after 8-frame delay (matches bar flash duration)
+    if (s._hitChaseFireCD > 0) {
+      s._hitChaseFireCD--;
+      if (s._hitChaseFireCD === 0) {
+        s._hitChaseCharge = 0;
+        s.aimNext = true;
+      }
+    }
+
     // Decay clash size streak bonus
     if (s._redClashSizeTimer > 0) {
       s._redClashSizeTimer--;
@@ -36,9 +45,19 @@ registerBehavior("red", {
     // ── Clash passive: +N permanent damage ──
     const noCD = s._rogueNoPassiveCD || false;
     if (noCD || s.redAbilityCD <= 0) {
-      const perHit = s._roguePassivePerHit || 1;
+      let perHit = s._roguePassivePerHit || 1;
+      if (s._rogueLowHpDoublePassive && s.hp < 30) perHit *= 2;
       s.bonusDamage += perHit;
       if (!noCD) s.redAbilityCD = 120; // 2s at 60fps
+    }
+
+    // ── Bounce Empower: count every hit on enemy as a bounce ──
+    if (s._rogueBounceEmpowerThreshold > 0 && !s._rogueBounceEmpowered) {
+      s._rogueBounceCount = (s._rogueBounceCount || 0) + 1;
+      if (s._rogueBounceCount >= s._rogueBounceEmpowerThreshold) {
+        s._rogueBounceCount = 0;
+        s._rogueBounceEmpowered = true;
+      }
     }
 
     // ── Clash Size Streak ──
@@ -69,13 +88,13 @@ registerBehavior("red", {
         s.currentSpeed = (BASE_SPEED + (s._rogueSpeedBonus || 0)) + 3;
         s.normalizeVelocity();
         s._redSpeedBoostTimer = 120; // 2s
-        floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y - 14, "FAST!", "#ff9933"));
       }
     }
 
     // ── Clash Heal ──
     if (s._rogueClashHealAmt > 0) {
       s.hp = Math.min(s.maxHp, s.hp + s._rogueClashHealAmt);
+      SFX.heal();
       floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y - 14, `+${s._rogueClashHealAmt}`, "#00ff44"));
     }
 
@@ -85,7 +104,8 @@ registerBehavior("red", {
     if (s._roguePassiveOnHit) {
       const noCD = s._rogueNoPassiveCD || false;
       if (noCD || s.redAbilityCD <= 0) {
-        const perHit = s._roguePassivePerHit || 1;
+        let perHit = s._roguePassivePerHit || 1;
+        if (s._rogueLowHpDoublePassive && s.hp < 30) perHit *= 2;
         s.bonusDamage += perHit;
         if (!noCD) s.redAbilityCD = 120;
       }
@@ -95,16 +115,28 @@ registerBehavior("red", {
     if (s._rogueEmergencyHeal && !s._rogueEmergencyHealUsed && s.hp <= 20) {
       s._rogueEmergencyHealUsed = true;
       s.hp = Math.min(s.maxHp, s.hp + 20);
-      floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y - 14, "SAVED! +20", "#00ff44"));
+      SFX.heal();
+      floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y - 14, "+20", "#00ff44"));
       spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, "#ff3e3e", 12, 1, 3, 6);
     }
 
     // ── Counter-chase: charges on taking damage (2 hits = trigger chase) ──
     if (s._rogueHitTriggersChase) {
-      s._hitChaseCharge = (s._hitChaseCharge || 0) + 1;
-      if (s._hitChaseCharge >= 2) {
-        s._hitChaseCharge = 0;
-        s.aimNext = true;
+      if (!s._hitChaseFireCD) {
+        s._hitChaseCharge = (s._hitChaseCharge || 0) + 1;
+        if (s._hitChaseCharge >= 2) {
+          s._hitChaseFireCD = 8; // hold bar full for 8 frames, then fire
+        }
+      }
+    }
+  },
+  onWallBounce(s) {
+    // ── Bounce Empower: count wall bounces ──
+    if (s._rogueBounceEmpowerThreshold > 0 && !s._rogueBounceEmpowered) {
+      s._rogueBounceCount = (s._rogueBounceCount || 0) + 1;
+      if (s._rogueBounceCount >= s._rogueBounceEmpowerThreshold) {
+        s._rogueBounceCount = 0;
+        s._rogueBounceEmpowered = true;
       }
     }
   },
@@ -160,6 +192,7 @@ registerBehavior("blue", {
     if (s.blueGlobalCD > 0) return;
     s.bonusDamage++;
     s.hp = Math.min(100, s.hp + 4);
+    SFX.heal();
     floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, "+4", "#00ff44"));
     s.size += 8;
     s.blueGlobalCD = COOLDOWN_FRAMES;
@@ -325,6 +358,7 @@ registerBehavior("violet", {
           const damage  = isClone ? 1 : 20;
           target.hp -= damage;
           if (target.onTakeDamage) target.onTakeDamage();
+          if (!isClone) SFX.takeDamage();
           floatingNumbers.push(new FloatingNumber(target.x + target.size / 2, target.y, damage.toString(), "#ffffff"));
           spawnSquareParticles(target.x + target.size / 2, target.y + target.size / 2, s.def.color, 10, 1, 3, 5);
           if (!isClone) triggerHitFreeze();
@@ -523,7 +557,6 @@ registerBehavior("sky", {
     s.skyCloneDmg++;
     // Update all existing clones on the field to match new damage
     clones.filter(c=>c.cloneType==="sky").forEach((c) => { if (c.owner === s) c.damage = s.skyCloneDmg; });
-    floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y - 14, `+${s.skyCloneDmg}`, "#87ceeb"));
   },
   updateSkill(s) {
     if (s.skyCloneCooldown > 0) s.skyCloneCooldown--;

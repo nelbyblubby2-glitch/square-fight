@@ -119,6 +119,7 @@ class Pulse {
         target.hp -= damage;
         this.hitList.push(target);
         if (target.onTakeDamage) target.onTakeDamage();
+        if (!isClone) SFX.takeDamage();
         floatingNumbers.push(new FloatingNumber(cx, target.y, damage.toString(), "#ffffff"));
         spawnSquareParticles(cx, cy, this.color, 8, 1, 3, 5);
       }
@@ -191,6 +192,7 @@ class FollowingPulse {
         victim.hp -= damage;
         this.hitList.push(victim);
         if (victim.onTakeDamage) victim.onTakeDamage();
+        if (!isClone) SFX.takeDamage();
         floatingNumbers.push(new FloatingNumber(vx, victim.y, damage.toString(), "#ffffff"));
         spawnSquareParticles(vx, vy, this.color, 8, 1, 3, 5);
       }

@@ -149,6 +149,22 @@ function getChargeBar2(s) {
   }
 }
 
+// Returns tertiary charge bar info, or null.
+function getChargeBar3(s) {
+  switch (s.def.type) {
+    case "red":
+      if (!s._rogueBounceEmpowerThreshold) return null;
+      return {
+        segments: s._rogueBounceEmpowerThreshold,
+        filled: s._rogueBounceEmpowered ? s._rogueBounceEmpowerThreshold : (s._rogueBounceCount || 0),
+        color: s.def.color,
+        alwaysFull: s._rogueBounceEmpowered, // pulsing full while empower is active
+      };
+    default:
+      return null;
+  }
+}
+
 // Returns { value, label } for a scaling stat, or null.
 function getScalingNum(s) {
   switch (s.def.type) {
@@ -226,6 +242,7 @@ function updateHUD() {
       if (chargeWrap.dataset.mode !== "seg" + chargeInfo.segments) {
         chargeWrap.innerHTML = "";
         chargeWrap.dataset.mode = "seg" + chargeInfo.segments;
+        chargeWrap.dataset.flashTimer = "0";
         chargeWrap.style.overflow = "visible";
         chargeWrap.style.flexDirection = "column";
         chargeWrap.style.justifyContent = "center";
@@ -243,8 +260,20 @@ function updateHUD() {
         }
       }
       const segs = chargeWrap.children;
+      const isFull = chargeInfo.filled >= chargeInfo.segments;
+
+      // Flash delay: when bar just became full, hold the lit state briefly
+      if (isFull) {
+        chargeWrap.dataset.flashTimer = "8";
+      }
+      const flashTimer = parseInt(chargeWrap.dataset.flashTimer || "0", 10);
+      const showFull = isFull || flashTimer > 0;
+      if (!isFull && flashTimer > 0) {
+        chargeWrap.dataset.flashTimer = String(flashTimer - 1);
+      }
+
       for (let i = 0; i < chargeInfo.segments; i++) {
-        const filled = i < chargeInfo.filled;
+        const filled = showFull ? true : i < chargeInfo.filled;
         segs[chargeInfo.segments - 1 - i].style.backgroundColor = filled
           ? chargeInfo.color
           : "rgba(255, 255, 255, 0.25)";
@@ -292,6 +321,7 @@ function updateHUD() {
         if (charge2Wrap.dataset.mode !== "seg2_" + chargeInfo2.segments) {
           charge2Wrap.innerHTML = "";
           charge2Wrap.dataset.mode = "seg2_" + chargeInfo2.segments;
+          charge2Wrap.dataset.flashTimer = "0";
           charge2Wrap.style.overflow = "visible";
           charge2Wrap.style.flexDirection = "column";
           charge2Wrap.style.justifyContent = "center";
@@ -309,8 +339,20 @@ function updateHUD() {
           }
         }
         const segs2 = charge2Wrap.children;
+        const isFull2 = chargeInfo2.filled >= chargeInfo2.segments;
+
+        // Flash delay: hold full state briefly
+        if (isFull2) {
+          charge2Wrap.dataset.flashTimer = "8";
+        }
+        const flashTimer2 = parseInt(charge2Wrap.dataset.flashTimer || "0", 10);
+        const showFull2 = isFull2 || flashTimer2 > 0;
+        if (!isFull2 && flashTimer2 > 0) {
+          charge2Wrap.dataset.flashTimer = String(flashTimer2 - 1);
+        }
+
         for (let i = 0; i < chargeInfo2.segments; i++) {
-          const filled = i < chargeInfo2.filled;
+          const filled = showFull2 ? true : i < chargeInfo2.filled;
           segs2[chargeInfo2.segments - 1 - i].style.backgroundColor = filled
             ? chargeInfo2.color
             : "rgba(255, 255, 255, 0.25)";
@@ -349,6 +391,63 @@ function updateHUD() {
       } else {
         charge2Wrap.style.opacity = "0";
         charge2Wrap.dataset.mode = "";
+      }
+    }
+
+    // -- Tertiary charge bar (charge-bar3) ------------------------------------
+    const charge3Wrap = document.getElementById(`charge-bar3-${side}-wrap`);
+    if (charge3Wrap) {
+      const chargeInfo3 = getChargeBar3(s);
+      if (chargeInfo3 && chargeInfo3.segments) {
+        if (charge3Wrap.dataset.mode !== "seg3_" + chargeInfo3.segments) {
+          charge3Wrap.innerHTML = "";
+          charge3Wrap.dataset.mode = "seg3_" + chargeInfo3.segments;
+          charge3Wrap.dataset.flashTimer = "0";
+          charge3Wrap.style.overflow = "visible";
+          charge3Wrap.style.flexDirection = "column";
+          charge3Wrap.style.justifyContent = "center";
+          charge3Wrap.style.alignItems = "center";
+          charge3Wrap.style.gap = "2px";
+          charge3Wrap.style.background = "none";
+          charge3Wrap.style.borderRadius = "5px";
+          charge3Wrap.style.padding = "2px";
+          charge3Wrap.style.boxSizing = "border-box";
+          for (let i = 0; i < chargeInfo3.segments; i++) {
+            const seg = document.createElement("div");
+            seg.style.cssText =
+              "width:10px;height:12px;border-radius:3px;background:rgba(255,255,255,0.1);transition:none;flex-shrink:0;";
+            charge3Wrap.appendChild(seg);
+          }
+        }
+        const segs3 = charge3Wrap.children;
+        const isFull3 = chargeInfo3.filled >= chargeInfo3.segments;
+
+        // When empower is active, always show full and pulse
+        if (chargeInfo3.alwaysFull) {
+          charge3Wrap.dataset.flashTimer = "8";
+        } else if (isFull3) {
+          charge3Wrap.dataset.flashTimer = "8";
+        }
+        const flashTimer3 = parseInt(charge3Wrap.dataset.flashTimer || "0", 10);
+        const showFull3 = chargeInfo3.alwaysFull || isFull3 || flashTimer3 > 0;
+        if (!chargeInfo3.alwaysFull && !isFull3 && flashTimer3 > 0) {
+          charge3Wrap.dataset.flashTimer = String(flashTimer3 - 1);
+        }
+
+        for (let i = 0; i < chargeInfo3.segments; i++) {
+          const filled = showFull3 ? true : i < chargeInfo3.filled;
+          segs3[chargeInfo3.segments - 1 - i].style.backgroundColor = filled
+            ? chargeInfo3.color
+            : "rgba(255, 255, 255, 0.25)";
+          segs3[chargeInfo3.segments - 1 - i].style.boxShadow = filled
+            ? `0 0 6px ${chargeInfo3.color}`
+            : "none";
+          segs3[chargeInfo3.segments - 1 - i].style.opacity = filled ? "1" : "0.4";
+        }
+        charge3Wrap.style.opacity = "1";
+      } else {
+        charge3Wrap.style.opacity = "0";
+        charge3Wrap.dataset.mode = "";
       }
     }
 
