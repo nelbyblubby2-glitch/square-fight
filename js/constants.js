@@ -17,9 +17,9 @@ const VIRTUAL_HEIGHT = 1440;
 // ── Character definitions ────────────────────────────────────────────────────
 const squareDefs = {
   1:  { name: "Red",    color: "#ff3e3e", type: "red",    desc: "Every direct collision grants +1 Clash Damage. (Cooldown: 3s)" },
-  2:  { name: "Green",  color: "#00ff44", type: "green",  desc: "Shoots projectiles every 3s. Every hit landed permanently increases the next burst by +1 projectile." },
+  2:  { name: "Green",  color: "#00ff44", type: "green",  desc: "Shoots projectiles every 4s. Every 3rd hit landed increases the projectile count by +1." },
   3:  { name: "Blue",   color: "#3ea8ff", type: "blue",   desc: "When hit, gain +4 HP, +8px Size, and +1 Damage. (Cooldown: 4s)" },
-  4:  { name: "Yellow", color: "#ffec3e", type: "yellow", desc: "Gain speed per bounce. Max starting dmg is 5. Each hit on enemy permanently increases your speed cap." },
+  4:  { name: "Yellow", color: "#ffec3e", type: "yellow", desc: "Gain +1 speed per bounce. Speed cap starts at 3. Each hit on enemy permanently raises cap by +0.5." },
   5:  { name: "White",  color: "#ffffff", type: "white",  desc: "Spawns a companion. Hit White to buff its Speed temporarily and increase Damage by +1. Companion deals 3 Damage." },
   6:  { name: "Cyan",   color: "#00ffff", type: "cyan",   desc: "Every 6.5s, summons a giant square from outside the walls targeting the enemy for 12 Damage." },
   7:  { name: "Purple", color: "#b33eff", type: "purple", desc: "Hits apply poison (2 dmg/s). Every 4th bounce (wall/enemy) adds +1s to your poison duration." },

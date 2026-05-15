@@ -84,13 +84,17 @@ function getChargeBar(s) {
         color: s.def.color,
         ready: s.limeCooldown <= 0 && !s.limeProjectileActive,
       };
-    case "green":
-      // Hit counter segments (3 = next shot upgrade)
+    case "green": {
+      // Dynamic hit counter segments based on threshold reduction
+      const threshold = Math.max(1, 3 - (s._roguePassiveThresholdReduction || 0));
+      // At threshold 1 (max reduction = 2 picks), no bar needed
+      if (threshold === 1) return null;
       return {
-        segments: 3,
-        filled: s.greenFlashTimer > 0 ? 3 : (s.greenHitCounter ?? 0),
+        segments: threshold,
+        filled: s.greenFlashTimer > 0 ? threshold : Math.min(s.greenHitCounter ?? 0, threshold),
         color: s.def.color,
       };
+    }
     case "pink":
       return {
         pct: s.pinkProjectileActive
@@ -135,15 +139,17 @@ function getChargeBar2(s) {
         filled: s._hitChaseCharge || 0,
         color: s.def.color,
       };
-    case "green":
+    case "green": {
+      const shootCooldown = Math.max(60, 180 - (s._rogueShootCooldownReduction || 0) * 60);
       return {
         pct:
           s.cooldownTimer > 0
-            ? Math.min(100, (1 - s.cooldownTimer / 180) * 100)
+            ? Math.min(100, (1 - s.cooldownTimer / shootCooldown) * 100)
             : 100,
         color: s.def.color,
         ready: s.cooldownTimer <= 0 && s.burstShotsLeft === 0,
       };
+    }
     default:
       return null;
   }
@@ -160,6 +166,16 @@ function getChargeBar3(s) {
         color: s.def.color,
         alwaysFull: s._rogueBounceEmpowered, // pulsing full while empower is active
       };
+    case "green": {
+      const mThreshold = s._rogueMilestoneShotThreshold || 0;
+      if (!mThreshold) return null;
+      const mFilled = (s._rogueTotalHitCount || 0) % mThreshold;
+      return {
+        segments: mThreshold,
+        filled: mFilled,
+        color: s.def.color,
+      };
+    }
     default:
       return null;
   }

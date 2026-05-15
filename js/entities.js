@@ -96,6 +96,12 @@ class Projectile {
   }
 
   draw() {
+    if (this._isMilestone) {
+      // Medium-sized projectile — draw as a larger square with a glow
+      ctx.fillStyle = this.mainOwner.def.color;
+      ctx.fillRect(this.x - 10, this.y - 10, 20, 20);
+      return;
+    }
     ctx.fillStyle = this.isPink
       ? "#ff69b4"
       : this.mainOwner.def.color;

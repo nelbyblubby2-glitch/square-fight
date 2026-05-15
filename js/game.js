@@ -80,7 +80,7 @@ function goToSquareFight() {
 }
 
 // IDs that are unlocked for roguelike. Add more IDs here as you unlock them.
-const ROGUE_UNLOCKED_IDS = new Set([1, 2]);
+const ROGUE_UNLOCKED_IDS = new Set([1, 2, 4]);
 
 function buildRogueSelectGrid() {
   const grid = document.getElementById("rogue-grid");
@@ -111,7 +111,7 @@ function buildRogueSelectGrid() {
     if (unlocked) {
       const passive = document.createElement("div");
       passive.className = "rogue-char-passive";
-      passive.textContent = def.desc;
+      passive.textContent = rogueDefs[id].passiveDesc;
       card.appendChild(passive);
     } else {
       const locked = document.createElement("div");
@@ -327,7 +327,7 @@ function _updateProjectiles() {
       if (s === p.mainOwner || hit || hookedTargets.has(s)) return;
       if (p.x > s.x && p.x < s.x + s.size && p.y > s.y && p.y < s.y + s.size) {
         const rogueBonus = p.mainOwner._rogueProjectileDamageBonus || 0;
-        const pdmg = p.isIndigo || p.isPink ? 1 : 1 + p.owner.bonusDamage + rogueBonus;
+        const pdmg = p._isMilestone ? p._milestoneDmg : (p.isIndigo || p.isPink ? 1 : 1 + p.owner.bonusDamage + rogueBonus);
         s.hp -= pdmg;
         s.onTakeDamage();
         SFX.takeDamage();
@@ -360,10 +360,47 @@ function _updateProjectiles() {
         if (p.owner.onHitEnemy && !p.isIndigo && !p.isPink) p.owner.onHitEnemy();
 
         // Green: count projectile hits (not body hits) for +1 shot upgrade
-        if (p.mainOwner.def && p.mainOwner.def.type === "green" && p.mainOwner.greenFlashTimer === 0) {
+        if (p.mainOwner.def && p.mainOwner.def.type === "green" && p.mainOwner.greenFlashTimer === 0 && !p._isMilestone) {
+          const passiveThreshold = Math.max(1, 3 - (p.mainOwner._roguePassiveThresholdReduction || 0));
           p.mainOwner.greenHitCounter = (p.mainOwner.greenHitCounter || 0) + 1;
-          if (p.mainOwner.greenHitCounter >= 3) {
-            p.mainOwner.greenFlashTimer = 6;  // 0.1s flash before reset+upgrade
+          if (p.mainOwner.greenHitCounter >= passiveThreshold) {
+            // If threshold is 1 and reduction is at max (2 picks), skip flash and grant immediately
+            if (passiveThreshold === 1) {
+              p.mainOwner.projectileCount++;
+              p.mainOwner.greenHitCounter = 0;
+            } else {
+              p.mainOwner.greenFlashTimer = 6;  // 0.1s flash before reset+upgrade
+            }
+          }
+
+          // Track total hits for milestone shot upgrade
+          if (p.mainOwner._rogueMilestoneShotThreshold > 0) {
+            p.mainOwner._rogueTotalHitCount = (p.mainOwner._rogueTotalHitCount || 0) + 1;
+            if (p.mainOwner._rogueTotalHitCount % p.mainOwner._rogueMilestoneShotThreshold === 0) {
+              // Fire a medium projectile dealing dmg = total hit count
+              const milestoneProj = new Projectile(p.mainOwner, s);
+              milestoneProj._isMilestone = true;
+              milestoneProj._milestoneDmg = p.mainOwner._rogueTotalHitCount;
+              projectiles.push(milestoneProj);
+            }
+          }
+
+          // Lucky Shot: 25% chance to fire 1 bonus projectile
+          if (p.mainOwner._rogueHitProcShot && Math.random() < 0.25) {
+            const bonusProj = new Projectile(p.mainOwner, s);
+            projectiles.push(bonusProj);
+          }
+
+          // Vampire Shot: heal player on projectile hit
+          if (p.mainOwner._rogueProjectileHeal > 0) {
+            p.mainOwner.hp = Math.min(p.mainOwner.maxHp, p.mainOwner.hp + p.mainOwner._rogueProjectileHeal);
+            floatingNumbers.push(new FloatingNumber(p.mainOwner.x + p.mainOwner.size / 2, p.mainOwner.y, "+" + p.mainOwner._rogueProjectileHeal, "#00ff44"));
+          }
+
+          // Ricochet: flip enemy velocity on projectile hit (no cooldown cost)
+          if (p.mainOwner._rogueProjectileFlip) {
+            s.vx = -s.vx;
+            s.vy = -s.vy;
           }
         }
 

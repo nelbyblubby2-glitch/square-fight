@@ -152,6 +152,11 @@ registerBehavior("green", {
     s.greenFlashTimer  = 0;   // 6-frame full-flash before reset (0.1s)
   },
   updateSkill(s) {
+    // Compute dynamic passive threshold (3 - reduction, min 1)
+    const passiveThreshold = Math.max(1, 3 - (s._roguePassiveThresholdReduction || 0));
+    // Compute shooting cooldown in frames (180 = 3s, minus 60 per reduction pick, min 60)
+    const shootCooldown = Math.max(60, 180 - (s._rogueShootCooldownReduction || 0) * 60);
+
     // Flash pause: bar is full, wait 0.1s then grant +1 shot and reset
     if (s.greenFlashTimer > 0) {
       s.greenFlashTimer--;
@@ -174,7 +179,7 @@ registerBehavior("green", {
       s.cooldownTimer--;
     } else {
       s.burstShotsLeft = s.projectileCount;
-      s.cooldownTimer  = 180;
+      s.cooldownTimer  = shootCooldown;
     }
   },
   // onHitEnemy intentionally NOT used — counting is done on projectile hit in game.js
@@ -208,10 +213,10 @@ registerBehavior("blue", {
 // ─────────────────────────────────────────────────────────────────────────────
 registerBehavior("yellow", {
   initState(s) {
-    s.yellowWallBoost = 0.5;
+    s.yellowWallBoost = 1;
     s.yellowAccelGain = 0.08;
-    s.yellowSpeedCap  = 5.0;
-    s.yellowCapGrowth = 1.5;
+    s.yellowSpeedCap  = 3.0;
+    s.yellowCapGrowth = 0.5;
   },
   getCollisionDamage(s) {
     return Math.max(1, Math.floor(s.currentSpeed));

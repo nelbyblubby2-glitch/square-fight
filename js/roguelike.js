@@ -3,7 +3,7 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // rogueState holds the persistent player stats across floors.
 // Each floor is a normal Square battle (squares[0] = player, squares[1] = enemy AI).
-// The player starts with 50 HP and 1 Power (damage multiplier added to base dmg).
+// The player starts with 100 HP and 1 Power (damage multiplier added to base dmg).
 // Red's passive: every clash → +1 permanent clash damage (same mechanic as SF).
 // ══════════════════════════════════════════════════════════════════════════════
 
@@ -15,17 +15,25 @@ const rogueDefs = {
     name: "Red",
     color: "#ff3e3e",
     type: "red",
-    startHP: 80,
+    startHP: 100,
     startPower: 1,
-    passiveDesc: "Every clash → +1 permanent damage (Cooldown: 3s)",
+    passiveDesc: "Every direct collision grants +1 Clash Damage. (Cooldown: 3s)",
   },
   2: {
     name: "Green",
     color: "#00ff44",
     type: "green",
-    startHP: 80,
+    startHP: 100,
     startPower: 1,
-    passiveDesc: "Shoot projectiles every 3s. Every 3 hits → +1 shot.",
+    passiveDesc: "Shoot projectiles every 4s. Every 3rd hit landed increases the projectile count by +1.",
+  },
+  4: {
+    name: "Yellow",
+    color: "#ffec3e",
+    type: "yellow",
+    startHP: 100,
+    startPower: 1,
+    passiveDesc: "Gain speed per wall bounce (+1 per bounce). Speed cap starts at 3. Each hit on enemy raises cap by +0.5.",
   },
 };
 
@@ -62,6 +70,8 @@ function selectRogueChar(charId) {
     passiveClashPerHit: 1,  // default +1 per clash; upgrade raises this
     hitTriggersChase: false,
     def,
+    // Yellow-specific
+    yellowSizeShrink: 0,    // cumulative shrink factor (0.2 per pick, up to 4)
   };
   startRogueFloor();
 }
@@ -166,6 +176,22 @@ function _applyRogueStats(enemyDef) {
     player._rogueBounceEmpowered  = false;
   }
 
+  // Patch Yellow's rogue upgrades
+  if (rogueState.charId === 4) {
+    // Passive overrides: speed cap = 3, cap growth = +0.5, wall boost = 1
+    player.yellowSpeedCap  = 5 + (rogueState.speedBonus || 0);  // base cap is 3; speed upgrades raise it
+    player.yellowCapGrowth = 1;
+    player.yellowWallBoost = 0.5;
+    // Apply shrink (size reduction)
+    const shrink = rogueState.yellowSizeShrink || 0;
+    if (shrink > 0) {
+      player.size = Math.round(SIZE * (1 - shrink));
+    }
+    // Clash damage bonus from yellow upgrades
+    player.bonusDamage = (rogueState.permClashBonus || 0);
+    player._rogueYellowClashBonus = rogueState.permClashBonus || 0;
+  }
+
   // Patch Green's rogue upgrades
   if (rogueState.charId === 2) {
     player._rogueSlowProjectile        = true;
@@ -173,6 +199,15 @@ function _applyRogueStats(enemyDef) {
     player._rogueProjectileBounce      = rogueState.projectileBounceBonus || 0;
     player._rogueProjectileDamageBonus = rogueState.projectileDamageBonus || 0;
     player.projectileCount = 1 + (rogueState.projectileCountBonus || 0);
+    // New upgrades
+    player._roguePassiveThresholdReduction = rogueState.passiveThresholdReduction || 0;
+    player._rogueHitProcShot               = rogueState.hitProcShot || false;
+    player._rogueShootCooldownReduction    = rogueState.shootCooldownReduction || 0;
+    player._rogueMilestoneShotThreshold    = rogueState.milestoneShotThreshold || 0; // 0 = disabled
+    player._rogueTotalHitCount             = 0; // resets each floor
+    // New upgrades
+    player._rogueProjectileHeal            = rogueState.projectileHeal || 0;
+    player._rogueProjectileFlip            = rogueState.projectileFlip || false;
     // Don't touch bonusDamage — that would affect clash damage too
   }
 }
@@ -189,7 +224,7 @@ const charUpgradePools = {
       id: "red_hp",
       name: "+10 Max HP",
       desc: "Increase your maximum HP by 10.",
-      icon: "",
+      icon: "1",
       limit: null,
       apply(state) {
         state.maxHp += 10;
@@ -199,7 +234,7 @@ const charUpgradePools = {
       id: "red_clash_dmg",
       name: "+1 Clash Damage",
       desc: "Your clashes permanently deal 1 more damage.",
-      icon: "",
+      icon: "2",
       limit: null,
       apply(state) {
         state.permClashBonus = (state.permClashBonus || 0) + 1;
@@ -209,7 +244,7 @@ const charUpgradePools = {
       id: "red_size",
       name: "Increase size by 20%.",
       desc: "Your square grows 20% larger.",
-      icon: "",
+      icon: "3",
       limit: null,
       apply(state) {
         state.sizeBonus = (state.sizeBonus || 0) + 0.2;
@@ -219,7 +254,7 @@ const charUpgradePools = {
       id: "red_passive_bonus",
       name: "Passive +1 bonus.",
       desc: "Your passive now grants +2 clash damage per clash instead of +1.",
-      icon: "",
+      icon: "4",
       limit: 1,
       apply(state) {
         state.passiveClashPerHit = (state.passiveClashPerHit || 1) + 1;
@@ -229,7 +264,7 @@ const charUpgradePools = {
       id: "red_no_cd",
       name: "Remove passive cooldown.",
       desc: "Your clash passive triggers every clash with no cooldown.",
-      icon: "",
+      icon: "5",
       limit: 1,
       apply(state) {
         state.noPassiveCooldown = true;
@@ -239,7 +274,7 @@ const charUpgradePools = {
       id: "red_hit_chase",
       name: "Counter-chase on hit.",
       desc: "When you take damage, activate chase regardless of cooldown. Does not trigger cooldown.",
-      icon: "",
+      icon: "6",
       limit: 1,
       apply(state) {
         state.hitTriggersChase = true;
@@ -249,7 +284,7 @@ const charUpgradePools = {
       id: "red_speed",
       name: "Increase speed by 0.5.",
       desc: "Your base movement speed increases by 0.5.",
-      icon: "",
+      icon: "7",
       limit: null,
       apply(state) {
         state.speedBonus = (state.speedBonus || 0) + 0.5;
@@ -259,7 +294,7 @@ const charUpgradePools = {
       id: "red_clash_size_streak",
       name: "Clash Size Streak",
       desc: "Every consecutive clash within 2s increases your clash size by 20% temporarily.",
-      icon: "",
+      icon: "8",
       limit: 1,
       apply(state) {
         state.clashSizeStreak = true;
@@ -269,7 +304,7 @@ const charUpgradePools = {
       id: "red_passive_on_hit",
       name: "Reactive Passive",
       desc: "Your clash passive also triggers when you take damage.",
-      icon: "",
+      icon: "9",
       limit: 1,
       apply(state) {
         state.passiveOnHit = true;
@@ -279,7 +314,7 @@ const charUpgradePools = {
       id: "red_speed_on_big_clash",
       name: "Clash Burst",
       desc: "When dealing clash damage above 10, increase speed by 3 for 2s.",
-      icon: "",
+      icon: "10",
       limit: 1,
       apply(state) {
         state.speedOnBigClash = true;
@@ -289,7 +324,7 @@ const charUpgradePools = {
       id: "red_emergency_heal",
       name: "Emergency Heal",
       desc: "When HP is at or below 20, heal +20 HP. Triggers once per fight.",
-      icon: "",
+      icon: "11",
       limit: 1,
       apply(state) {
         state.emergencyHeal = true;
@@ -299,7 +334,7 @@ const charUpgradePools = {
       id: "red_clash_heal",
       name: "Clash Heal",
       desc: "On every clash, heal +1 HP.",
-      icon: "",
+      icon: "12",
       limit: 2,
       apply(state) {
         state.clashHeal = (state.clashHeal || 0) + 1;
@@ -309,7 +344,7 @@ const charUpgradePools = {
       id: "red_low_hp_double_passive",
       name: "Desperate Power",
       desc: "While HP is below 30, your passive gain is doubled.",
-      icon: "",
+      icon: "13",
       limit: 1,
       apply(state) {
         state.lowHpDoublePassive = true;
@@ -319,7 +354,7 @@ const charUpgradePools = {
       id: "red_bounce_empower",
       name: "Bounce Empower",
       desc: "Every 8th/7th/6th bounce (hitting enemy or wall) empowers your next clash for +10 damage.",
-      icon: "",
+      icon: "14",
       limit: 3,
       apply(state) {
         // Each pick: start at 8, reduce by 1 per pick (8 → 7 → 6)
@@ -335,7 +370,7 @@ const charUpgradePools = {
       id: "green_hp",
       name: "+10 Max HP",
       desc: "Increase your maximum HP by 10.",
-      icon: "",
+      icon: "1",
       limit: null,
       apply(state) {
         state.maxHp += 10;
@@ -345,7 +380,7 @@ const charUpgradePools = {
       id: "green_speed",
       name: "+0.5 Speed",
       desc: "Your base movement speed increases by 0.5.",
-      icon: "",
+      icon: "2",
       limit: null,
       apply(state) {
         state.speedBonus = (state.speedBonus || 0) + 0.5;
@@ -355,7 +390,7 @@ const charUpgradePools = {
       id: "green_proj_bounce",
       name: "Projectile Bounce",
       desc: "Your projectiles bounce off walls.",
-      icon: "",
+      icon: "3",
       limit: 1,
       apply(state) {
         state.projectileBounceBonus = (state.projectileBounceBonus || 0) + 1;
@@ -365,7 +400,7 @@ const charUpgradePools = {
       id: "green_proj_damage_speed",
       name: "Sharpened Shot",
       desc: "Projectiles deal +1 damage.",
-      icon: "",
+      icon: "4",
       limit: 1,
       apply(state) {
         state.projectileDamageBonus = (state.projectileDamageBonus || 0) + 1;
@@ -375,10 +410,117 @@ const charUpgradePools = {
       id: "green_proj_count",
       name: "+1 Projectile",
       desc: "Fire one additional projectile per burst.",
-      icon: "",
+      icon: "5",
       limit: null,
       apply(state) {
         state.projectileCountBonus = (state.projectileCountBonus || 0) + 1;
+      },
+    },
+    {
+      id: "green_passive_threshold",
+      name: "Quicker Stacks",
+      desc: "Reduce the number of hits required to gain +1 shot by 1.",
+      icon: "6",
+      limit: 2,
+      apply(state) {
+        state.passiveThresholdReduction = (state.passiveThresholdReduction || 0) + 1;
+      },
+    },
+    {
+      id: "green_hit_proc_shot",
+      name: "Lucky Shot",
+      desc: "Each projectile that hits the enemy has a 25% chance to fire 1 bonus projectile instantly. Does not affect shooting cooldown.",
+      icon: "7",
+      limit: 1,
+      apply(state) {
+        state.hitProcShot = true;
+      },
+    },
+    {
+      id: "green_cooldown_reduction",
+      name: "Rapid Fire",
+      desc: "Reduce shooting cooldown by 1 second.",
+      icon: "8",
+      limit: 2,
+      apply(state) {
+        state.shootCooldownReduction = (state.shootCooldownReduction || 0) + 1;
+      },
+    },
+    {
+      id: "green_milestone_shot",
+      name: "Milestone Burst",
+      desc: "Every 8th/7th/6th projectile hit fires a medium-sized projectile dealing damage equal to your current hit count. Does not affect shooting cooldown.",
+      icon: "9",
+      limit: 3,
+      apply(state) {
+        state.milestoneShotPicks = (state.milestoneShotPicks || 0) + 1;
+        // 8 → 7 → 6 as picks increase
+        state.milestoneShotThreshold = 9 - state.milestoneShotPicks;
+      },
+    },
+    {
+      id: "green_proj_heal",
+      name: "Vampire Shot",
+      desc: "When a projectile hits the enemy, heal +1 HP.",
+      icon: "10",
+      limit: 1,
+      apply(state) {
+        state.projectileHeal = (state.projectileHeal || 0) + 1;
+      },
+    },
+    {
+      id: "green_proj_flip",
+      name: "Ricochet",
+      desc: "When a projectile hits the enemy, flip their velocity. Does not trigger action cooldown.",
+      icon: "11",
+      limit: 1,
+      apply(state) {
+        state.projectileFlip = true;
+      },
+    },
+  ],
+
+  // ── YELLOW ──
+  4: [
+    {
+      id: "yellow_hp",
+      name: "+10 Max HP",
+      desc: "Increase your maximum HP by 10.",
+      icon: "1",
+      limit: null,
+      apply(state) {
+        state.maxHp += 10;
+      },
+    },
+    {
+      id: "yellow_speed",
+      name: "+0.5 Speed",
+      desc: "Your base movement speed and speed cap both increase by 0.5.",
+      icon: "2",
+      limit: null,
+      apply(state) {
+        state.speedBonus = (state.speedBonus || 0) + 0.5;
+      },
+    },
+    {
+      id: "yellow_clash_dmg",
+      name: "+1 Clash Damage",
+      desc: "Your clashes permanently deal 1 more damage.",
+      icon: "3",
+      limit: null,
+      apply(state) {
+        state.permClashBonus = (state.permClashBonus || 0) + 1;
+      },
+    },
+    {
+      id: "yellow_shrink",
+      name: "Shrink Size 20%",
+      desc: "Your square shrinks by 20% and your speed cap increases by 2.",
+      icon: "4",
+      limit: 3,
+      apply(state) {
+        state.yellowSizeShrink = (state.yellowSizeShrink || 0) + 0.2;
+        state.speedBonus = (state.speedBonus || 0) + 2;
       },
     },
   ],
