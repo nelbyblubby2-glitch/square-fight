@@ -196,19 +196,58 @@ registerBehavior("green", {
 // ─────────────────────────────────────────────────────────────────────────────
 registerBehavior("blue", {
   initState(s) {
-    s.blueShootCD  = 0;
-    s.blueHits     = 0;  // projectile hits landed (grows pulse level)
+    s.blueShootCD    = 0;
+    s.blueHits       = 0;  // projectile hits landed (grows pulse level)
+    s.blueBurstLeft  = 0;  // shots remaining in current burst
+    s.blueShotGap    = 0;  // gap timer between burst shots
+    s._blueShootCount = 0; // Tracks shot segments: 0 -> 1 -> 2 (Full UI) -> 3 (Reset)
   },
   updateSkill(s) {
+    // Burst in progress
+    if (s.blueBurstLeft > 0) {
+      if (s.blueShotGap > 0) {
+        s.blueShotGap--;
+      } else {
+        const target = squares.find(t => t !== s);
+        if (target) {
+          const proj = new Projectile(s, target);
+          proj._isBlue = true;
+          // Speed: 60% slower if bounce upgrade, otherwise 40% slower than normal projectile speed
+          const bouncing = s._rogueBlueBounce || false;
+          const spd = bouncing ? PROJECTILE_SPEED * 0.4 : PROJECTILE_SPEED * 0.8;
+          const dx = target.x + target.size / 2 - proj.x;
+          const dy = target.y + target.size / 2 - proj.y;
+          const dist = Math.hypot(dx, dy) || 1;
+          proj.vx = (dx / dist) * spd;
+          proj.vy = (dy / dist) * spd;
+          if (bouncing) {
+            proj.isGreenBounce = true; // reuse green bounce wall logic (skips OOB removal)
+            proj.bounceTimer = 300;    // live for ~10s then expire
+            proj._rogueBlueBounce = true;
+          }
+
+          if (s._rogueBlueEmpoweredShot) {
+            s._blueShootCount = (s._blueShootCount || 0) + 1;
+            
+            if (s._blueShootCount >= 3) {
+              proj._isBluEmpowered = true; // 3rd shot triggers empowered state
+              s._blueShootCount = 0;       // Resets to zero immediately
+            }
+          }
+          
+          projectiles.push(proj);
+        }
+        s.blueBurstLeft--;
+        s.blueShotGap = 35; // bigger gap between burst shots for Blue
+      }
+      return;
+    }
+
     s.blueShootCD++;
     if (s.blueShootCD >= 300) {
-      s.blueShootCD = 0;
-      const target = squares.find(t => t !== s);
-      if (target) {
-        const proj = new Projectile(s, target);
-        proj._isBlue = true; // flag: deal normal dmg AND spawn pulse on hit
-        projectiles.push(proj);
-      }
+      s.blueShootCD   = 0;
+      s.blueBurstLeft = s.projectileCount; // fire projectileCount shots in burst
+      s.blueShotGap   = 0;
     }
   },
 });
@@ -227,8 +266,8 @@ registerBehavior("yellow", {
   },
   getCollisionDamage(s) {
     let dmg = Math.max(1, Math.floor(s.currentSpeed));
-    // High-speed clash damage bonus (+4 at >= 4 speed)
-    if (s._rogueYellowSpeedClashDmg && s.currentSpeed >= 4) dmg += 4;
+    // High-speed clash damage bonus (+10 at >= 10 speed)
+    if (s._rogueYellowSpeedClashDmg && s.currentSpeed >= 10) dmg += 10;
     return dmg;
   },
   onWallBounce(s) {
@@ -254,7 +293,7 @@ registerBehavior("yellow", {
         sw.color     = "#ffec3e";
         sw.thickness = 25;
         // Orange pulse size (default Pulse: maxSize=2500, growth=12)
-        sw._yellowSpeedDmg = Math.max(1, Math.floor(s.currentSpeed));
+        sw._yellowSpeedDmg = Math.max(1, Math.floor(s.currentSpeed * 0.5));
         sw._isYellowShockwave = true;
         pulses.push(sw);
         spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, "#ffec3e", 10, 1, 3, 6);
@@ -274,11 +313,11 @@ registerBehavior("yellow", {
       s.currentSpeed = BASE_SPEED;
     }
     s.normalizeVelocity();
-    // Clash heal at 4+ speed (check pre-clash speed)
-    if (s._rogueYellowClashHeal && speedAtClash >= 4) {
-      s.hp = Math.min(s.maxHp, s.hp + 4);
+    // Clash heal at 5+ speed (check pre-clash speed)
+    if (s._rogueYellowClashHeal && speedAtClash >= 5) {
+      s.hp = Math.min(s.maxHp, s.hp + 3);
       SFX.heal();
-      floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y - 14, "+4", "#00ff44"));
+      floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y - 14, "+3", "#00ff44"));
     }
     // Reset bounce shockwave counter on clash with enemy
     if (s._rogueYellowBounceShockwaveThreshold > 0) {

@@ -81,7 +81,7 @@ function goToSquareFight() {
 }
 
 // IDs that are unlocked for roguelike. Add more IDs here as you unlock them.
-const ROGUE_UNLOCKED_IDS = new Set([1, 2, 4]);
+const ROGUE_UNLOCKED_IDS = new Set([1, 2, 3, 4]);
 
 function buildRogueSelectGrid() {
   const grid = document.getElementById("rogue-grid");
@@ -328,6 +328,7 @@ function _updateProjectiles() {
       // Blue projectile: spawn pulse at the edge when it goes OOB (no enemy hit)
       if (p._isBlue) {
         const pulse = new BluePulse(p.mainOwner, p.x, p.y, p.mainOwner.blueHits || 0, []);
+        if (p._isBluEmpowered) pulse.applyEmpowered();
         bluePulses.push(pulse);
       }
       projectiles.splice(pi, 1);
@@ -339,12 +340,17 @@ function _updateProjectiles() {
     let hit = false;
     squares.forEach((s) => {
       if (s === p.mainOwner || hit || hookedTargets.has(s)) return;
-      if (p.x > s.x && p.x < s.x + s.size && p.y > s.y && p.y < s.y + s.size) {
+      // Determine projectile half-size for rect collision (matches visual size)
+      const pHalf = p._isBluEmpowered ? 20 : p._isBlue ? 10 : (p._isMilestone || p._isSapphire) ? 10 : 4;
+      const pLeft = p.x - pHalf, pRight = p.x + pHalf, pTop = p.y - pHalf, pBot = p.y + pHalf;
+      const hit2d = pRight > s.x && pLeft < s.x + s.size && pBot > s.y && pTop < s.y + s.size;
+      if (hit2d) {
 
         // Blue projectile: deals normal damage AND spawns an expanding pulse on hit
         // Damage scales with blueHits (passive accumulator), not bonusDamage
         if (p._isBlue) {
-          const pdmg = 1 + (p.mainOwner.blueHits || 0);
+          const baseDmg = 1 + (p.mainOwner.blueHits || 0); // blueHits already includes passive bonus seeded at floor start
+          const pdmg = p._isBluEmpowered ? baseDmg * 2 : baseDmg;
           s.hp -= pdmg;
           s.onTakeDamage();
           SFX.takeDamage();
@@ -352,6 +358,7 @@ function _updateProjectiles() {
           spawnHitEffect(p.x, p.y, p.mainOwner.def.color);
           // Spawn pulse — pass hit target so pulse skips it (one source of damage per enemy)
           const pulse = new BluePulse(p.mainOwner, p.x, p.y, p.mainOwner.blueHits || 0, [s]);
+          if (p._isBluEmpowered) pulse.applyEmpowered();
           bluePulses.push(pulse);
           // Projectile hits increment blueHits by 2 (damage bonus increase)
           p.mainOwner.blueHits = (p.mainOwner.blueHits || 0) + 2;
@@ -623,6 +630,16 @@ function _applyAction(square, action) {
     // Freeze the square in place briefly (same mechanic as gray clone freeze)
     square.stopTimer      = 90; // ~1.5 seconds
     square.actionCooldown = ACTION_COOLDOWN;
+    // Yellow stop shockwave
+    if (square._rogueYellowStopShockwave && square._rogueYellowStopShockwave > 0) {
+      const sw = new Pulse(square);
+      sw.color     = "#ffec3e";
+      sw.thickness = 25;
+      sw._yellowSpeedDmg = Math.max(1, Math.floor(square.currentSpeed * 0.5));
+      sw._isYellowShockwave = true;
+      pulses.push(sw);
+      spawnSquareParticles(square.x + square.size / 2, square.y + square.size / 2, "#ffec3e", 10, 1, 3, 6);
+    }
   }
 }
 

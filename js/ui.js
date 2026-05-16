@@ -160,6 +160,14 @@ function getChargeBar2(s) {
         color: s.def.color,
       };
     }
+    case "blue": {
+      if (!s._rogueBlueEmpoweredShot) return null;
+      return {
+        segments: 2,
+        filled: Math.min(2, s._blueShootCount || 0), // Displays 0, 1, or 2 (Full)
+        color: s.def.color,
+      };
+    }
     case "green": {
       const shootCooldown = Math.max(
         60,
@@ -224,7 +232,7 @@ function getScalingNum(s) {
       return { value: `${s.skyCloneDmg ?? 1}`, label: "DMG" };
     }
     case "blue":
-      return { value: `${(s.blueHits ?? 0) + 1}`, label: "PULSE" };
+      return { value: `${(s.blueHits ?? 0) + 1}`, label: "DMG" };
     case "sapphire":
       return { value: `${s.bonusDamage + 1}`, label: "DMG" };
     case "white": {

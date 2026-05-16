@@ -35,6 +35,14 @@ const rogueDefs = {
     startPower: 1,
     passiveDesc: "Wall bounces accelerate +1 speed. Damage scales with speed. Enemy hits raise speed cap by +0.5 and acceleration by +0.08.",
   },
+  3: {
+    name: "Blue",
+    color: "#3ea8ff",
+    type: "blue",
+    startHP: 100,
+    startPower: 1,
+    passiveDesc: "Every 5s: shoot a slow projectile that releases a BluePulse on hit or when it leaves the arena. Each hit grows projectile and pulse damage.",
+  },
 };
 
 // Enemy progression per floor
@@ -223,6 +231,24 @@ function _applyRogueStats(enemyDef) {
     player._rogueProjectileFlip            = rogueState.projectileFlip || false;
     // Don't touch bonusDamage — that would affect clash damage too
   }
+
+  // Patch Blue's rogue upgrades
+  if (rogueState.charId === 3) {
+    player.projectileCount = 1 + (rogueState.projectileCountBonus || 0);
+    player._rogueBlueEmpoweredShot = rogueState.blueEmpoweredShot || false;
+    player._blueShootCount = 0; // resets each floor
+    player._rogueBlueBounce = rogueState.blueBounce || false;
+    // Apply passive dmg bonus: seed blueHits with the bonus so it affects base dmg
+    player.blueHits = rogueState.bluePassiveDmgBonus || 0;
+    // No longer use bonusDamage for blue
+    player.bonusDamage = 0;
+  }
+
+  // Patch Yellow stop shockwave
+  if (rogueState.charId === 4) {
+    player._rogueYellowStopShockwave = rogueState.yellowStopShockwave || 0;
+    player._rogueYellowStopShockwaveTriggered = false;
+  }
 }
 
 // (Stats HUD removed — roguelike arena is identical to normal battle HUD)
@@ -235,37 +261,37 @@ const charUpgradePools = {
   1: [
     {
       id: "red_hp",
-      name: "+10 Max HP",
-      desc: "Increase your maximum HP by 10.",
+      name: "Vitality",
+      desc: "Increase your maximum HP by 25.",
       icon: "1",
       limit: null,
       apply(state) {
-        state.maxHp += 10;
+        state.maxHp += 25;
       },
     },
     {
       id: "red_clash_dmg",
-      name: "+1 Clash Damage",
-      desc: "Your clashes permanently deal 1 more damage.",
+      name: "Power",
+      desc: "Increase your clash damage by 2.",
       icon: "2",
       limit: null,
       apply(state) {
-        state.permClashBonus = (state.permClashBonus || 0) + 1;
+        state.permClashBonus = (state.permClashBonus || 0) + 2;
       },
     },
     {
       id: "red_size",
-      name: "Increase size by 20%.",
-      desc: "Your square grows 20% larger.",
+      name: "Mass",
+      desc: "Increase your size by 50%.",
       icon: "3",
-      limit: null,
+      limit: 2,
       apply(state) {
-        state.sizeBonus = (state.sizeBonus || 0) + 0.2;
+        state.sizeBonus = (state.sizeBonus || 0) + 0.5;
       },
     },
     {
       id: "red_passive_bonus",
-      name: "Passive +1 bonus.",
+      name: "Overwhelming Force",
       desc: "Your passive now grants +2 clash damage per clash instead of +1.",
       icon: "4",
       limit: 1,
@@ -275,7 +301,7 @@ const charUpgradePools = {
     },
     {
       id: "red_no_cd",
-      name: "Remove passive cooldown.",
+      name: "Fury",
       desc: "Your clash passive triggers every clash with no cooldown.",
       icon: "5",
       limit: 1,
@@ -285,7 +311,7 @@ const charUpgradePools = {
     },
     {
       id: "red_hit_chase",
-      name: "Counter-chase on hit.",
+      name: "Pursuit",
       desc: "When you take damage, activate chase regardless of cooldown. Does not trigger cooldown.",
       icon: "6",
       limit: 1,
@@ -295,8 +321,8 @@ const charUpgradePools = {
     },
     {
       id: "red_speed",
-      name: "Increase speed by 0.5.",
-      desc: "Your base movement speed increases by 0.5.",
+      name: "Speed",
+      desc: "Increase speed by 0.5.",
       icon: "7",
       limit: null,
       apply(state) {
@@ -305,7 +331,7 @@ const charUpgradePools = {
     },
     {
       id: "red_clash_size_streak",
-      name: "Clash Size Streak",
+      name: "Combative Growth",
       desc: "Every consecutive clash within 2s increases your clash size by 20% temporarily.",
       icon: "8",
       limit: 1,
@@ -315,7 +341,7 @@ const charUpgradePools = {
     },
     {
       id: "red_passive_on_hit",
-      name: "Reactive Passive",
+      name: "Retaliation",
       desc: "Your clash passive also triggers when you take damage.",
       icon: "9",
       limit: 1,
@@ -325,7 +351,7 @@ const charUpgradePools = {
     },
     {
       id: "red_speed_on_big_clash",
-      name: "Clash Burst",
+      name: "Impact Burst",
       desc: "When dealing clash damage above 10, increase speed by 3 for 2s.",
       icon: "10",
       limit: 1,
@@ -345,7 +371,7 @@ const charUpgradePools = {
     },
     {
       id: "red_clash_heal",
-      name: "Clash Heal",
+      name: "Siphon",
       desc: "On every clash, heal +1 HP.",
       icon: "12",
       limit: 2,
@@ -355,7 +381,7 @@ const charUpgradePools = {
     },
     {
       id: "red_low_hp_double_passive",
-      name: "Desperate Power",
+      name: "Cornered",
       desc: "While HP is below 30, your passive gain is doubled.",
       icon: "13",
       limit: 1,
@@ -365,7 +391,7 @@ const charUpgradePools = {
     },
     {
       id: "red_bounce_empower",
-      name: "Bounce Empower",
+      name: "Empowered Clash",
       desc: "Every 8th/7th/6th bounce (hitting enemy or wall) empowers your next clash for +10 damage.",
       icon: "14",
       limit: 3,
@@ -381,18 +407,18 @@ const charUpgradePools = {
   2: [
     {
       id: "green_hp",
-      name: "+10 Max HP",
-      desc: "Increase your maximum HP by 10.",
+      name: "Vitality",
+      desc: "Increase your maximum HP by 25.",
       icon: "1",
       limit: null,
       apply(state) {
-        state.maxHp += 10;
+        state.maxHp += 25;
       },
     },
     {
       id: "green_speed",
-      name: "+0.5 Speed",
-      desc: "Your base movement speed increases by 0.5.",
+      name: "Speed",
+      desc: "Increase speed by 0.5.",
       icon: "2",
       limit: null,
       apply(state) {
@@ -401,8 +427,8 @@ const charUpgradePools = {
     },
     {
       id: "green_proj_bounce",
-      name: "Projectile Bounce",
-      desc: "Your projectiles bounce off walls.",
+      name: "Ricochet",
+      desc: "Projectiles bounce off walls.",
       icon: "3",
       limit: 1,
       apply(state) {
@@ -421,17 +447,17 @@ const charUpgradePools = {
     },
     {
       id: "green_proj_count",
-      name: "+1 Projectile",
-      desc: "Fire one additional projectile per burst.",
+      name: "Volley",
+      desc: "Increase projectile count by 2.",
       icon: "5",
       limit: null,
       apply(state) {
-        state.projectileCountBonus = (state.projectileCountBonus || 0) + 1;
+        state.projectileCountBonus = (state.projectileCountBonus || 0) + 2;
       },
     },
     {
       id: "green_passive_threshold",
-      name: "Quicker Stacks",
+      name: "Focus",
       desc: "Reduce the number of hits required to gain +1 shot by 1.",
       icon: "6",
       limit: 2,
@@ -461,7 +487,7 @@ const charUpgradePools = {
     },
     {
       id: "green_milestone_shot",
-      name: "Milestone Burst",
+      name: "Apex Shot",
       desc: "Every 8th/7th/6th projectile hit fires a medium-sized projectile dealing damage equal to your current hit count. Does not affect shooting cooldown.",
       icon: "9",
       limit: 3,
@@ -473,7 +499,7 @@ const charUpgradePools = {
     },
     {
       id: "green_proj_heal",
-      name: "Vampire Shot",
+      name: "Life Steal",
       desc: "When a projectile hits the enemy, heal +1 HP.",
       icon: "10",
       limit: 1,
@@ -483,7 +509,7 @@ const charUpgradePools = {
     },
     {
       id: "green_proj_flip",
-      name: "Ricochet",
+      name: "Inversion",
       desc: "When a projectile hits the enemy, flip their velocity. Does not trigger action cooldown.",
       icon: "11",
       limit: 1,
@@ -497,17 +523,18 @@ const charUpgradePools = {
   4: [
     {
       id: "yellow_hp",
-      name: "+10 Max HP",
-      desc: "Increase your maximum HP by 10.",
+      name: "Vitality",
+      desc: "Increase your maximum HP by 25.",
       icon: "1",
       limit: null,
       apply(state) {
-        state.maxHp += 10;
+        state.maxHp += 25;
       },
     },
     {
       id: "yellow_speed",
-      name: "+0.5 Speed",
+      name: "Speed",
+      desc: "Increase speed by 0.5.",
       desc: "Your base movement speed and speed cap both increase by 0.5.",
       icon: "2",
       limit: null,
@@ -517,18 +544,18 @@ const charUpgradePools = {
     },
     {
       id: "yellow_clash_dmg",
-      name: "+1 Clash Damage",
-      desc: "Your clashes permanently deal 1 more damage.",
+      name: "Power",
+      desc: "Increase clash damage by 2.",
       icon: "3",
       limit: null,
       apply(state) {
-        state.permClashBonus = (state.permClashBonus || 0) + 1;
+        state.permClashBonus = (state.permClashBonus || 0) + 2;
       },
     },
     {
       id: "yellow_shrink",
-      name: "Shrink Size 20%",
-      desc: "Your square shrinks by 20% and your speed cap increases by 2.",
+      name: "Aerodynamics",
+      desc: "Decrease square size by 20% and increase speed cap by 2.",
       icon: "4",
       limit: 3,
       apply(state) {
@@ -538,7 +565,7 @@ const charUpgradePools = {
     },
     {
       id: "yellow_speed_pulse",
-      name: "Speed Pulse",
+      name: "Sonic Pulse",
       desc: "When at 5 speed or higher, release a pulse on every wall bounce that deals 2 damage.",
       icon: "5",
       limit: 1,
@@ -558,8 +585,8 @@ const charUpgradePools = {
     },
     {
       id: "yellow_bounce_shockwave",
-      name: "Ricochet Shockwave",
-      desc: "Every 7th/5th consecutive wall bounce triggers an expanding shockwave dealing damage based on speed. Resets on enemy clash.",
+      name: "Tension Release",
+      desc: "Every 7th/5th consecutive wall bounce triggers an expanding shockwave dealing 50% of current speed as damage. Resets on enemy clash.",
       icon: "7",
       limit: 2,
       apply(state) {
@@ -570,8 +597,8 @@ const charUpgradePools = {
     },
     {
       id: "yellow_clash_heal",
-      name: "Impact Heal",
-      desc: "When clashing at 4 speed or higher, heal +4 HP.",
+      name: "Kinetic Heal",
+      desc: "When clashing at 5 speed or higher, heal +3 HP.",
       icon: "8",
       limit: 1,
       apply(state) {
@@ -580,7 +607,7 @@ const charUpgradePools = {
     },
     {
       id: "yellow_speed_retain",
-      name: "Momentum Carry",
+      name: "Inertia",
       desc: "After hitting the enemy, retain 20% of your built-up speed instead of resetting completely.",
       icon: "9",
       limit: 1,
@@ -590,12 +617,86 @@ const charUpgradePools = {
     },
     {
       id: "yellow_speed_clash_dmg",
-      name: "High-Speed Impact",
-      desc: "When at 4 speed or higher, increase clash damage by 4.",
+      name: "Mach Strike",
+      desc: "When at 10 speed or higher, increase clash damage by 10.",
       icon: "10",
       limit: 1,
       apply(state) {
         state.yellowSpeedClashDmg = true;
+      },
+    },
+    {
+      id: "yellow_stop_shockwave",
+      name: "Shockwave Release",
+      desc: "When you stop, release a shockwave dealing damage equal to 50% of your current speed.",
+      icon: "11",
+      limit: null,
+      apply(state) {
+        state.yellowStopShockwave = (state.yellowStopShockwave || 0) + 1;
+      },
+    },
+  ],
+
+  // ── BLUE ──
+  3: [
+    {
+      id: "blue_hp",
+      name: "Vitality",
+      desc: "Increase your maximum HP by 25.",
+      icon: "1",
+      limit: null,
+      apply(state) {
+        state.maxHp += 25;
+      },
+    },
+    {
+      id: "blue_dmg",
+      name: "Power",
+      desc: "Increase projectile damage by 2.",
+      icon: "2",
+      limit: null,
+      apply(state) {
+        state.bluePassiveDmgBonus = (state.bluePassiveDmgBonus || 0) + 2;
+      },
+    },
+    {
+      id: "blue_speed",
+      name: "Speed",
+      desc: "Increase speed by 0.5.",
+      icon: "3",
+      limit: null,
+      apply(state) {
+        state.speedBonus = (state.speedBonus || 0) + 0.5;
+      },
+    },
+    {
+      id: "blue_proj_count",
+      name: "Barrage",
+      desc: "Increase projectile count by 1.",
+      icon: "4",
+      limit: 2,
+      apply(state) {
+        state.projectileCountBonus = (state.projectileCountBonus || 0) + 1;
+      },
+    },
+    {
+      id: "blue_empowered_shot",
+      name: "Overcharge",
+      desc: "Every 2nd shot fired, the next shot is Empowered: double size, damage, and explosion size.",
+      icon: "5",
+      limit: 1,
+      apply(state) {
+        state.blueEmpoweredShot = true;
+      },
+    },
+    {
+      id: "blue_bounce",
+      name: "Delayed Ordnance",
+      desc: "Your projectiles are 40% slower but can bounce off walls for 5 seconds.",
+      icon: "6",
+      limit: 1,
+      apply(state) {
+        state.blueBounce = true;
       },
     },
   ],

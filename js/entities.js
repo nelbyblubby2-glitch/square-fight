@@ -93,6 +93,19 @@ class Projectile {
         particles.push(p);
       }
     }
+
+    // Blue bounce upgrade: reflect off walls infinitely; expire after bounceTimer
+    if (this._isBlue && this.isGreenBounce) {
+      this.bounceTimer--;
+      if (this.bounceTimer <= 0) {
+        this.isGreenBounce = false; // allow OOB removal next frame
+      } else {
+        if (this.x <= arena.x)           { this.vx =  Math.abs(this.vx); }
+        if (this.x >= arena.x + arena.w) { this.vx = -Math.abs(this.vx); }
+        if (this.y <= arena.y)           { this.vy =  Math.abs(this.vy); }
+        if (this.y >= arena.y + arena.h) { this.vy = -Math.abs(this.vy); }
+      }
+    }
   }
 
   draw() {
@@ -103,9 +116,13 @@ class Projectile {
       return;
     }
     if (this._isBlue) {
-      // Medium-sized blue projectile
+      // Medium-sized blue projectile; empowered variant is larger
       ctx.fillStyle = this.mainOwner.def.color;
-      ctx.fillRect(this.x - 10, this.y - 10, 20, 20);
+      if (this._isBluEmpowered) {
+        ctx.fillRect(this.x - 20, this.y - 20, 40, 40);
+      } else {
+        ctx.fillRect(this.x - 10, this.y - 10, 20, 20);
+      }
       return;
     }
     ctx.fillStyle = this.isPink

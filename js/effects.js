@@ -144,7 +144,7 @@ class BluePulse {
     this.x              = x;
     this.y              = y;
     this.level          = level;           // blueHits at time of fire
-    this.damage         = 1 + level;       // base 1 dmg + 1 per hit
+    this.damage         = 1 + level; // base 1 dmg + 1 per hit (blueHits already includes passive bonus)
     this.size           = 0;
     this.maxSize        = 150 + level * 16; // base small, grows with level
     this.growth         = 8;
@@ -153,6 +153,12 @@ class BluePulse {
     // so they receive damage from only one source (projectile OR pulse, not both)
     this.hitList        = projHitTargets ? [...projHitTargets] : [];
     this.color          = owner.def.color;
+  }
+
+  applyEmpowered() {
+    this.damage  *= 2;
+    this.maxSize *= 2;
+    this.thickness = 30;
   }
 
   update() {
