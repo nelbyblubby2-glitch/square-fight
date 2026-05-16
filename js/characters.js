@@ -150,6 +150,8 @@ registerBehavior("green", {
   initState(s) {
     s.greenHitCounter  = 0;   // counts projectile hits on enemy; every 3 grants +1 shot
     s.greenFlashTimer  = 0;   // 6-frame full-flash before reset (0.1s)
+    s.cooldownTimer    = 180; // start at full cooldown so green doesn't shoot immediately
+    s.burstShotsLeft   = 0;
   },
   updateSkill(s) {
     // Compute dynamic passive threshold (3 - reduction, min 1)
@@ -187,23 +189,27 @@ registerBehavior("green", {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BLUE — On taking damage: gain HP, size, and bonus damage (cooldown 4s)
+// BLUE — Every 5s: shoot a slow medium projectile. It releases a BluePulse
+//        when it hits OR goes out of bounds. Each projectile hit increments
+//        blueHits, which increases BOTH projectile damage and pulse damage/size.
+//        An enemy is hit by projectile OR pulse — never both.
 // ─────────────────────────────────────────────────────────────────────────────
 registerBehavior("blue", {
   initState(s) {
-    s.blueGlobalCD = 0;
-  },
-  onTakeDamage(s) {
-    if (s.blueGlobalCD > 0) return;
-    s.bonusDamage++;
-    s.hp = Math.min(100, s.hp + 4);
-    SFX.heal();
-    floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, "+4", "#00ff44"));
-    s.size += 8;
-    s.blueGlobalCD = COOLDOWN_FRAMES;
+    s.blueShootCD  = 0;
+    s.blueHits     = 0;  // projectile hits landed (grows pulse level)
   },
   updateSkill(s) {
-    if (s.blueGlobalCD > 0) s.blueGlobalCD--;
+    s.blueShootCD++;
+    if (s.blueShootCD >= 300) {
+      s.blueShootCD = 0;
+      const target = squares.find(t => t !== s);
+      if (target) {
+        const proj = new Projectile(s, target);
+        proj._isBlue = true; // flag: deal normal dmg AND spawn pulse on hit
+        projectiles.push(proj);
+      }
+    }
   },
 });
 
@@ -217,18 +223,67 @@ registerBehavior("yellow", {
     s.yellowAccelGain = 0.08;
     s.yellowSpeedCap  = 3.0;
     s.yellowCapGrowth = 0.5;
+    s._yellowPulseTimer = 0;   // frames since last speed pulse
   },
   getCollisionDamage(s) {
-    return Math.max(1, Math.floor(s.currentSpeed));
+    let dmg = Math.max(1, Math.floor(s.currentSpeed));
+    // High-speed clash damage bonus (+4 at >= 4 speed)
+    if (s._rogueYellowSpeedClashDmg && s.currentSpeed >= 4) dmg += 4;
+    return dmg;
   },
   onWallBounce(s) {
     s.currentSpeed += s.yellowWallBoost;
+    // Speed pulse: fires on every bounce when speed >= 5
+    if (s._rogueYellowSpeedPulse && s.currentSpeed >= 5) {
+      const fp = new FollowingPulse(s, null, s.x + s.size / 2, s.y + s.size / 2, 0);
+      fp.color        = "#ffec3e";
+      fp.maxSize      = 350;
+      fp.growth       = 10;
+      fp.delay        = 0;
+      fp.active       = true;
+      fp._fixedDamage = 2;
+      followingPulses.push(fp);
+    }
+    // Bounce shockwave counter
+    if (s._rogueYellowBounceShockwaveThreshold > 0) {
+      s._rogueYellowBounceCount = (s._rogueYellowBounceCount || 0) + 1;
+      if (s._rogueYellowBounceCount >= s._rogueYellowBounceShockwaveThreshold) {
+        s._rogueYellowBounceCount = 0;
+        // Spawn orange-style shockwave
+        const sw = new Pulse(s);
+        sw.color     = "#ffec3e";
+        sw.thickness = 25;
+        // Orange pulse size (default Pulse: maxSize=2500, growth=12)
+        sw._yellowSpeedDmg = Math.max(1, Math.floor(s.currentSpeed));
+        sw._isYellowShockwave = true;
+        pulses.push(sw);
+        spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, "#ffec3e", 10, 1, 3, 6);
+      }
+    }
   },
   onHitEnemy(s) {
+    const speedAtClash = s.currentSpeed;
     s.yellowWallBoost += s.yellowAccelGain;
     s.yellowSpeedCap  += s.yellowCapGrowth;
-    s.currentSpeed     = BASE_SPEED;
+    // Speed retention: keep 20% of built-up speed above base instead of full reset
+    if (s._rogueYellowSpeedRetain) {
+      const baseSpd = BASE_SPEED + (s._rogueSpeedBonus || 0);
+      const excess  = speedAtClash - baseSpd;
+      s.currentSpeed = baseSpd + Math.max(0, excess * 0.2);
+    } else {
+      s.currentSpeed = BASE_SPEED;
+    }
     s.normalizeVelocity();
+    // Clash heal at 4+ speed (check pre-clash speed)
+    if (s._rogueYellowClashHeal && speedAtClash >= 4) {
+      s.hp = Math.min(s.maxHp, s.hp + 4);
+      SFX.heal();
+      floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y - 14, "+4", "#00ff44"));
+    }
+    // Reset bounce shockwave counter on clash with enemy
+    if (s._rogueYellowBounceShockwaveThreshold > 0) {
+      s._rogueYellowBounceCount = 0;
+    }
   },
   // Yellow speed cap is enforced inside Square._updateMovement via the registry
   updateSkill(s) {
@@ -692,5 +747,28 @@ registerBehavior("mist", {
       });
     }
     s.mistShootTimer = 60;  // 2s cooldown
+  },
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SAPPHIRE — on taking damage gain +4 HP, +8px size,
+//            +1 bonus damage. (Cooldown: 4s)
+// ─────────────────────────────────────────────────────────────────────────────
+registerBehavior("sapphire", {
+  initState(s) {
+    s.sapphirePassiveCD = 0;
+  },
+  updateSkill(s) {
+    if (s.sapphirePassiveCD > 0) s.sapphirePassiveCD--;
+  },
+  onTakeDamage(s) {
+    if (s.sapphirePassiveCD > 0) return;
+    s.bonusDamage++;
+    s.hp = Math.min(s.maxHp, s.hp + 4);
+    SFX.heal();
+    floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, "+4", "#00ff44"));
+    s.size += 8;
+    s.sapphirePassiveCD = COOLDOWN_FRAMES;
   },
 });

@@ -28,6 +28,7 @@ class Square {
     this.shotGapTimer    = 0;
     this.actionCooldown  = 0;
     this.speedBoostTimer = 0;
+    this.speedBoostAdd   = 0;
     this.stopTimer       = 0;
     this.aimNext         = false;
 
@@ -154,7 +155,12 @@ class Square {
     if (this.grayFreezeTimer > 0) { this.grayFreezeTimer--; return; }
 
     let activeSpeed = this.currentSpeed;
-    if (this.speedBoostTimer > 0) { this.speedBoostTimer--; activeSpeed = BOOST_SPEED; }
+    if (this.speedBoostTimer > 0) {
+      this.speedBoostTimer--;
+      // Additive boost: add speedBoostAdd to current speed rather than replacing it
+      activeSpeed = this.currentSpeed + (this.speedBoostAdd || 2);
+      if (this.speedBoostTimer === 0) this.speedBoostAdd = 0; // clear after boost ends
+    }
 
     this.x += (this.vx / this.currentSpeed) * activeSpeed;
     this.y += (this.vy / this.currentSpeed) * activeSpeed;

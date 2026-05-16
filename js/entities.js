@@ -96,8 +96,14 @@ class Projectile {
   }
 
   draw() {
-    if (this._isMilestone) {
+    if (this._isMilestone || this._isSapphire) {
       // Medium-sized projectile — draw as a larger square with a glow
+      ctx.fillStyle = this.mainOwner.def.color;
+      ctx.fillRect(this.x - 10, this.y - 10, 20, 20);
+      return;
+    }
+    if (this._isBlue) {
+      // Medium-sized blue projectile
       ctx.fillStyle = this.mainOwner.def.color;
       ctx.fillRect(this.x - 10, this.y - 10, 20, 20);
       return;

@@ -150,11 +150,13 @@
         <button class="mob-btn" id="mob-p1-flip" ontouchstart="event.preventDefault(); SFX.uiClick(); _mobileAction(0,'flip')" onclick="SFX.uiClick(); _mobileAction(0,'flip')">FLIP</button>
         <button class="mob-btn" id="mob-p1-chase" ontouchstart="event.preventDefault(); SFX.uiClick(); _mobileAction(0,'chase')" onclick="SFX.uiClick(); _mobileAction(0,'chase')">CHASE</button>
         <button class="mob-btn" id="mob-p1-speed" ontouchstart="event.preventDefault(); SFX.uiClick(); _mobileAction(0,'speed')" onclick="SFX.uiClick(); _mobileAction(0,'speed')">SPEED</button>
+        <button class="mob-btn" id="mob-p1-stop" ontouchstart="event.preventDefault(); SFX.uiClick(); _mobileAction(0,'stop')" onclick="SFX.uiClick(); _mobileAction(0,'stop')">STOP</button>
       </div>
       <div class="mobile-player-btns" id="mobile-p2">
         <button class="mob-btn" id="mob-p2-flip" ontouchstart="event.preventDefault(); SFX.uiClick(); _mobileAction(1,'flip')" onclick="SFX.uiClick(); _mobileAction(1,'flip')">FLIP</button>
         <button class="mob-btn" id="mob-p2-chase" ontouchstart="event.preventDefault(); SFX.uiClick(); _mobileAction(1,'chase')" onclick="SFX.uiClick(); _mobileAction(1,'chase')">CHASE</button>
         <button class="mob-btn" id="mob-p2-speed" ontouchstart="event.preventDefault(); SFX.uiClick(); _mobileAction(1,'speed')" onclick="SFX.uiClick(); _mobileAction(1,'speed')">SPEED</button>
+        <button class="mob-btn" id="mob-p2-stop" ontouchstart="event.preventDefault(); SFX.uiClick(); _mobileAction(1,'stop')" onclick="SFX.uiClick(); _mobileAction(1,'stop')">STOP</button>
       </div>
     </div>
 
@@ -185,7 +187,7 @@
     <script>
       canvas = document.getElementById("game");
       ctx = canvas.getContext("2d");
-      _initTouchControls(); // must run after canvas is assigned
+      // Touch/swipe controls removed — mobile uses buttons only
       resize();
       // Start on main menu
       showScreen("main-menu");

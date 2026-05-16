@@ -94,7 +94,8 @@ class Pulse {
 
   update() {
     this.size += this.growth;
-    if (this.size > arena.w * 2.5) return;
+    const sizeLimit = this.maxSize || arena.w * 2.5;
+    if (this.size > sizeLimit) return;
 
     const halfSize = this.size / 2;
 
@@ -115,7 +116,7 @@ class Pulse {
         if (!inArena) return;
 
         const isClone = target instanceof Clone;
-        const damage  = isClone ? 1 : 2;
+        const damage  = isClone ? 1 : (this._isYellowShockwave ? this._yellowSpeedDmg : 2);
         target.hp -= damage;
         this.hitList.push(target);
         if (target.onTakeDamage) target.onTakeDamage();
@@ -129,11 +130,76 @@ class Pulse {
   draw() {
     ctx.strokeStyle  = this.color;
     ctx.lineWidth    = 4;
-    ctx.globalAlpha  = Math.max(0, 0.7 - this.size / this.maxSize);
+    const sizeLimit  = this.maxSize || 2500;
+    ctx.globalAlpha  = Math.max(0, 0.7 - this.size / sizeLimit);
     ctx.strokeRect(this.x - this.size / 2, this.y - this.size / 2, this.size, this.size);
     ctx.globalAlpha  = 1.0;
   }
 }
+
+// ── Blue pulse — small expanding pulse, damage+size scales with hit count ─────
+class BluePulse {
+  constructor(owner, x, y, level, projHitTargets) {
+    this.owner          = owner;
+    this.x              = x;
+    this.y              = y;
+    this.level          = level;           // blueHits at time of fire
+    this.damage         = 1 + level;       // base 1 dmg + 1 per hit
+    this.size           = 0;
+    this.maxSize        = 150 + level * 16; // base small, grows with level
+    this.growth         = 8;
+    this.thickness      = 20;
+    // Pre-populate hitList with any targets already hit by the projectile
+    // so they receive damage from only one source (projectile OR pulse, not both)
+    this.hitList        = projHitTargets ? [...projHitTargets] : [];
+    this.color          = owner.def.color;
+  }
+
+  update() {
+    this.size += this.growth;
+    if (this.size > this.maxSize) return;
+
+    const halfSize = this.size / 2;
+
+    [...squares, ...clones].forEach((target) => {
+      if (target === this.owner || this.hitList.includes(target)) return;
+
+      const cx    = target.x + target.size / 2;
+      const cy    = target.y + target.size / 2;
+      const distX = Math.abs(cx - this.x);
+      const distY = Math.abs(cy - this.y);
+
+      const onVertical   = distX >= halfSize - this.thickness && distX <= halfSize && distY <= halfSize;
+      const onHorizontal = distY >= halfSize - this.thickness && distY <= halfSize && distX <= halfSize;
+
+      if (onVertical || onHorizontal) {
+        const isClone = target instanceof Clone;
+        const dmg     = isClone ? 1 : this.damage;
+        target.hp -= dmg;
+        this.hitList.push(target);
+        if (target.onTakeDamage) target.onTakeDamage();
+        if (!isClone) {
+          SFX.takeDamage();
+          // Pulse hits also increment blueHits by 2 (same as projectile hits)
+          if (this.owner && this.owner.blueHits !== undefined) {
+            this.owner.blueHits += 2;
+          }
+        }
+        floatingNumbers.push(new FloatingNumber(cx, target.y, dmg.toString(), "#ffffff"));
+        spawnSquareParticles(cx, cy, this.color, 8, 1, 3, 5);
+      }
+    });
+  }
+
+  draw() {
+    ctx.strokeStyle = this.color;
+    ctx.lineWidth   = 3;
+    ctx.globalAlpha = Math.max(0, 0.8 - this.size / this.maxSize);
+    ctx.strokeRect(this.x - this.size / 2, this.y - this.size / 2, this.size, this.size);
+    ctx.globalAlpha = 1.0;
+  }
+}
+
 
 // ── Pink delayed pulse (locks on then expands) ────────────────────────────────
 class FollowingPulse {
@@ -188,7 +254,7 @@ class FollowingPulse {
 
       if (onVertical || onHorizontal) {
         const isClone = victim instanceof Clone;
-        const damage  = isClone ? 1 : 1 + Math.floor(this.power);
+        const damage  = isClone ? 1 : (this._fixedDamage !== undefined ? this._fixedDamage : 1 + Math.floor(this.power));
         victim.hp -= damage;
         this.hitList.push(victim);
         if (victim.onTakeDamage) victim.onTakeDamage();

@@ -66,6 +66,7 @@ function goToMainMenu() {
   grayStaticClones = [];
   goldConstructs   = [];
   mistProjectiles  = [];
+  bluePulses   = [];
   gameOver         = false;
   freezeTimer      = 0;
   winDelayTimer    = 0;
@@ -148,6 +149,7 @@ function resetBattle() {
   grayStaticClones = [];
   goldConstructs   = [];
   mistProjectiles  = [];
+  bluePulses   = [];
   squares       = [new Square(selectedIds[0], "left"), new Square(selectedIds[1], "right")];
   projectiles   = [];
   giantSquares  = [];
@@ -283,6 +285,13 @@ function _runBattle() {
   companions.forEach((c) => c.draw());
   projectiles.forEach((p) => p.draw());
 
+  // Sapphire pulses: update + draw + cleanup
+  for (let i = bluePulses.length - 1; i >= 0; i--) {
+    bluePulses[i].update();
+    bluePulses[i].draw();
+    if (bluePulses[i].size > bluePulses[i].maxSize) bluePulses.splice(i, 1);
+  }
+
   for (let i = particles.length - 1; i >= 0; i--) {
     particles[i].update();
     particles[i].draw();
@@ -316,6 +325,11 @@ function _updateProjectiles() {
 
     // Out of bounds (non-pink, non-bouncing-green)
     if (!p.isPink && !p.isGreenBounce && (p.x < arena.x || p.x > arena.x + arena.w || p.y < arena.y || p.y > arena.y + arena.h)) {
+      // Blue projectile: spawn pulse at the edge when it goes OOB (no enemy hit)
+      if (p._isBlue) {
+        const pulse = new BluePulse(p.mainOwner, p.x, p.y, p.mainOwner.blueHits || 0, []);
+        bluePulses.push(pulse);
+      }
       projectiles.splice(pi, 1);
       continue;
     }
@@ -326,6 +340,25 @@ function _updateProjectiles() {
     squares.forEach((s) => {
       if (s === p.mainOwner || hit || hookedTargets.has(s)) return;
       if (p.x > s.x && p.x < s.x + s.size && p.y > s.y && p.y < s.y + s.size) {
+
+        // Blue projectile: deals normal damage AND spawns an expanding pulse on hit
+        // Damage scales with blueHits (passive accumulator), not bonusDamage
+        if (p._isBlue) {
+          const pdmg = 1 + (p.mainOwner.blueHits || 0);
+          s.hp -= pdmg;
+          s.onTakeDamage();
+          SFX.takeDamage();
+          floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, pdmg, "#ffffff"));
+          spawnHitEffect(p.x, p.y, p.mainOwner.def.color);
+          // Spawn pulse — pass hit target so pulse skips it (one source of damage per enemy)
+          const pulse = new BluePulse(p.mainOwner, p.x, p.y, p.mainOwner.blueHits || 0, [s]);
+          bluePulses.push(pulse);
+          // Projectile hits increment blueHits by 2 (damage bonus increase)
+          p.mainOwner.blueHits = (p.mainOwner.blueHits || 0) + 2;
+          hit = true;
+          return;
+        }
+
         const rogueBonus = p.mainOwner._rogueProjectileDamageBonus || 0;
         const pdmg = p._isMilestone ? p._milestoneDmg : (p.isIndigo || p.isPink ? 1 : 1 + p.owner.bonusDamage + rogueBonus);
         s.hp -= pdmg;
@@ -380,7 +413,7 @@ function _updateProjectiles() {
               // Fire a medium projectile dealing dmg = total hit count
               const milestoneProj = new Projectile(p.mainOwner, s);
               milestoneProj._isMilestone = true;
-              milestoneProj._milestoneDmg = p.mainOwner._rogueTotalHitCount;
+              milestoneProj._milestoneDmg = p.mainOwner.projectileCount;
               projectiles.push(milestoneProj);
             }
           }
@@ -582,7 +615,13 @@ function _applyAction(square, action) {
     square.aimNext = true;
     square.actionCooldown = ACTION_COOLDOWN;
   } else if (action === "speed") {
+    // Add +2 to current speed for the boost duration, then restore
     square.speedBoostTimer = 90;
+    square.speedBoostAdd   = 2; // additive bonus, applied in _updateMovement
+    square.actionCooldown  = ACTION_COOLDOWN;
+  } else if (action === "stop") {
+    // Freeze the square in place briefly (same mechanic as gray clone freeze)
+    square.stopTimer      = 90; // ~1.5 seconds
     square.actionCooldown = ACTION_COOLDOWN;
   }
 }
@@ -603,69 +642,21 @@ window.addEventListener("keydown", (e) => {
 
   if ((activeMode !== "battle" && activeMode !== "rogue-run") || gameOver) return;
 
-  // P1: Z = flip, X = chase, C = speed
+  // P1: Z = flip, X = chase, C = speed, V = stop
   if (key === "z") _applyAction(squares[0], "flip");
   if (key === "x") _applyAction(squares[0], "chase");
   if (key === "c") _applyAction(squares[0], "speed");
+  if (key === "v") _applyAction(squares[0], "stop");
 
-  // P2: J = flip, K = chase, L = speed (disabled in rogue mode)
+  // P2: J = flip, K = chase, L = speed, ; = stop (disabled in rogue mode)
   if (activeMode === "rogue-run") return;
   if (key === "j") _applyAction(squares[1], "flip");
   if (key === "k") _applyAction(squares[1], "chase");
   if (key === "l") _applyAction(squares[1], "speed");
+  if (key === ";") _applyAction(squares[1], "stop");
 });
 
-// ── Touch / swipe input ───────────────────────────────────────────────────────
-// Called from index.html after canvas is assigned, so `canvas` is guaranteed defined.
-function _initTouchControls() {
-  // We split the screen in half: left half = P1, right half = P2
-  // Swipe left/right  → flip X
-  // Swipe up/down     → flip Y
-  // Tap (no swipe)    → stop
-  const SWIPE_THRESHOLD = 30; // px
-
-  let touches = {}; // track each touch by identifier
-
-  function playerIndexForX(x) {
-    return x < window.innerWidth / 2 ? 0 : 1;
-  }
-
-  canvas.addEventListener("touchstart", (e) => {
-    e.preventDefault();
-    for (const t of e.changedTouches) {
-      touches[t.identifier] = { startX: t.clientX, startY: t.clientY, playerIdx: playerIndexForX(t.clientX) };
-    }
-  }, { passive: false });
-
-  canvas.addEventListener("touchend", (e) => {
-    e.preventDefault();
-    if (currentScreen !== "battle" || gameOver) { touches = {}; return; }
-    for (const t of e.changedTouches) {
-      const start = touches[t.identifier];
-      if (!start) continue;
-      delete touches[t.identifier];
-
-      const dx = t.clientX - start.startX;
-      const dy = t.clientY - start.startY;
-      const sq = squares[start.playerIdx];
-
-      if (Math.abs(dx) < SWIPE_THRESHOLD && Math.abs(dy) < SWIPE_THRESHOLD) {
-        // Tap → speed
-        _applyAction(sq, "speed");
-      } else if (Math.abs(dx) >= Math.abs(dy)) {
-        // Horizontal swipe → flip
-        _applyAction(sq, "flip");
-      } else {
-        // Vertical swipe → chase
-        _applyAction(sq, "chase");
-      }
-    }
-  }, { passive: false });
-
-  canvas.addEventListener("touchcancel", (e) => {
-    for (const t of e.changedTouches) delete touches[t.identifier];
-  }, { passive: false });
-}
+// Touch / swipe input removed — mobile uses buttons only
 
 window.addEventListener("resize", resize);
 

@@ -33,7 +33,7 @@ const rogueDefs = {
     type: "yellow",
     startHP: 100,
     startPower: 1,
-    passiveDesc: "Gain speed per wall bounce (+1 per bounce). Speed cap starts at 3. Each hit on enemy raises cap by +0.5.",
+    passiveDesc: "Wall bounces accelerate +1 speed. Damage scales with speed. Enemy hits raise speed cap by +0.5 and acceleration by +0.08.",
   },
 };
 
@@ -114,6 +114,7 @@ function _resetRogueBattle() {
   grayStaticClones = [];
   goldConstructs   = [];
   mistProjectiles  = [];
+  bluePulses   = [];
   squares       = [new Square(selectedIds[0], "left"), new Square(selectedIds[1], "right")];
   projectiles   = [];
   giantSquares  = [];
@@ -190,6 +191,18 @@ function _applyRogueStats(enemyDef) {
     // Clash damage bonus from yellow upgrades
     player.bonusDamage = (rogueState.permClashBonus || 0);
     player._rogueYellowClashBonus = rogueState.permClashBonus || 0;
+    // New yellow upgrades
+    player._rogueYellowSpeedPulse     = rogueState.yellowSpeedPulse || false;
+    player._rogueYellowAccelGainBonus = rogueState.yellowAccelGainBonus || 0;
+    player._rogueYellowBounceShockwaveThreshold = rogueState.yellowBounceShockwaveThreshold || 0;
+    player._rogueYellowBounceCount    = 0; // reset each floor
+    player._rogueYellowClashHeal      = rogueState.yellowClashHeal || false;
+    player._rogueYellowSpeedRetain    = rogueState.yellowSpeedRetain || false;
+    player._rogueYellowSpeedClashDmg  = rogueState.yellowSpeedClashDmg || false;
+    // Apply accel gain bonus
+    if (player._rogueYellowAccelGainBonus > 0) {
+      player.yellowAccelGain = (player.yellowAccelGain || 0.08) + player._rogueYellowAccelGainBonus;
+    }
   }
 
   // Patch Green's rogue upgrades
@@ -521,6 +534,68 @@ const charUpgradePools = {
       apply(state) {
         state.yellowSizeShrink = (state.yellowSizeShrink || 0) + 0.2;
         state.speedBonus = (state.speedBonus || 0) + 2;
+      },
+    },
+    {
+      id: "yellow_speed_pulse",
+      name: "Speed Pulse",
+      desc: "When at 5 speed or higher, release a pulse on every wall bounce that deals 2 damage.",
+      icon: "5",
+      limit: 1,
+      apply(state) {
+        state.yellowSpeedPulse = true;
+      },
+    },
+    {
+      id: "yellow_accel_gain",
+      name: "Momentum Surge",
+      desc: "Increase acceleration gain per wall bounce by 0.7.",
+      icon: "6",
+      limit: 1,
+      apply(state) {
+        state.yellowAccelGainBonus = (state.yellowAccelGainBonus || 0) + 0.7;
+      },
+    },
+    {
+      id: "yellow_bounce_shockwave",
+      name: "Ricochet Shockwave",
+      desc: "Every 7th/5th consecutive wall bounce triggers an expanding shockwave dealing damage based on speed. Resets on enemy clash.",
+      icon: "7",
+      limit: 2,
+      apply(state) {
+        state.yellowBounceShockwavePicks = (state.yellowBounceShockwavePicks || 0) + 1;
+        // 7 → 5 bounces threshold as picks increase
+        state.yellowBounceShockwaveThreshold = 8 - state.yellowBounceShockwavePicks;
+      },
+    },
+    {
+      id: "yellow_clash_heal",
+      name: "Impact Heal",
+      desc: "When clashing at 4 speed or higher, heal +4 HP.",
+      icon: "8",
+      limit: 1,
+      apply(state) {
+        state.yellowClashHeal = true;
+      },
+    },
+    {
+      id: "yellow_speed_retain",
+      name: "Momentum Carry",
+      desc: "After hitting the enemy, retain 20% of your built-up speed instead of resetting completely.",
+      icon: "9",
+      limit: 1,
+      apply(state) {
+        state.yellowSpeedRetain = true;
+      },
+    },
+    {
+      id: "yellow_speed_clash_dmg",
+      name: "High-Speed Impact",
+      desc: "When at 4 speed or higher, increase clash damage by 4.",
+      icon: "10",
+      limit: 1,
+      apply(state) {
+        state.yellowSpeedClashDmg = true;
       },
     },
   ],

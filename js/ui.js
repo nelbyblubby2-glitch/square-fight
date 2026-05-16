@@ -41,12 +41,9 @@ function getChargeBar(s) {
       };
     case "blue":
       return {
-        pct:
-          s.blueGlobalCD > 0
-            ? Math.min(100, (1 - s.blueGlobalCD / 240) * 100)
-            : 100,
+        pct: Math.min(100, (s.blueShootCD / 300) * 100),
         color: s.def.color,
-        ready: s.blueGlobalCD <= 0,
+        ready: s.blueShootCD >= 300,
       };
     case "cyan":
       return {
@@ -124,6 +121,14 @@ function getChargeBar(s) {
         filled: s.mistFlashTimer > 0 ? 3 : (s.mistHitCounter ?? 0),
         color: s.def.color,
       };
+    case "sapphire":
+      return {
+        pct: s.sapphirePassiveCD > 0
+          ? Math.min(100, (1 - s.sapphirePassiveCD / COOLDOWN_FRAMES) * 100)
+          : 100,
+        color: s.def.color,
+        ready: !(s.sapphirePassiveCD > 0),
+      };
     default:
       return null;
   }
@@ -139,6 +144,15 @@ function getChargeBar2(s) {
         filled: s._hitChaseCharge || 0,
         color: s.def.color,
       };
+    case "yellow": {
+      const threshold = s._rogueYellowBounceShockwaveThreshold || 0;
+      if (!threshold) return null;
+      return {
+        segments: threshold,
+        filled: s._rogueYellowBounceCount || 0,
+        color: s.def.color,
+      };
+    }
     case "green": {
       const shootCooldown = Math.max(60, 180 - (s._rogueShootCooldownReduction || 0) * 60);
       return {
@@ -197,6 +211,10 @@ function getScalingNum(s) {
     case "sky": {
       return { value: `${s.skyCloneDmg ?? 1}`, label: "DMG" };
     }
+    case "blue":
+      return { value: `${(s.blueHits ?? 0) + 1}`, label: "PULSE" };
+    case "sapphire":
+      return { value: `${s.bonusDamage + 1}`, label: "DMG" };
     case "white": {
       const comp = companions.find((c) => c.owner === s);
       return { value: `${comp ? comp.damage : 1}`, label: "DMG" };

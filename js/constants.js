@@ -18,7 +18,7 @@ const VIRTUAL_HEIGHT = 1440;
 const squareDefs = {
   1:  { name: "Red",    color: "#ff3e3e", type: "red",    desc: "Every direct collision grants +1 Clash Damage. (Cooldown: 3s)" },
   2:  { name: "Green",  color: "#00ff44", type: "green",  desc: "Shoots projectiles every 4s. Every 3rd hit landed increases the projectile count by +1." },
-  3:  { name: "Blue",   color: "#3ea8ff", type: "blue",   desc: "When hit, gain +4 HP, +8px Size, and +1 Damage. (Cooldown: 4s)" },
+  3:  { name: "Blue",   color: "#3ea8ff", type: "blue",   desc: "Every 5s: shoots a slow medium projectile that releases a BluePulse on hit or when it leaves the arena. Each projectile hit grows damage (+1 to both projectile and pulse). An enemy is hit by one source only — not both." },
   4:  { name: "Yellow", color: "#ffec3e", type: "yellow", desc: "Gain +1 speed per bounce. Speed cap starts at 3. Each hit on enemy permanently raises cap by +0.5." },
   5:  { name: "White",  color: "#ffffff", type: "white",  desc: "Spawns a companion. Hit White to buff its Speed temporarily and increase Damage by +1. Companion deals 3 Damage." },
   6:  { name: "Cyan",   color: "#00ffff", type: "cyan",   desc: "Every 6.5s, summons a giant square from outside the walls targeting the enemy for 12 Damage." },
@@ -33,5 +33,6 @@ const squareDefs = {
   15: { name: "Scarlet",color: "#cc1a1a", type: "scarlet",desc: "On Clash: Apply 3s Bleed (1 dmg/s). Every 3s: Shoot a fast bullet that instantly triggers all Bleed on hit." },
   16: { name: "Gray",   color: "#acacac", type: "gray",   desc: "Every 0.3s, leaves a static clone that lasts 1.5s. Enemy touching the clone gets frozen for 3s. Frozen enemies take 10 dmg when hit. Slightly faster than others." },
   17: { name: "Gold",   color: "#FFD700", type: "gold",   desc: "Every 10s, drops a construct (max 3). Constructs heal Gold +2 HP when the enemy hits them. Oldest construct removed when limit is exceeded." },
-  18: { name: "Mist",   color: "#dbeeff", type: "mist",   desc: "Shoots 3 projectiles in a tiny arc every 2s, each dealing 1 dmg. After hitting the enemy 3 times, teleports to a random free spot in the arena." },
+  18: { name: "Mist",    color: "#dbeeff", type: "mist",    desc: "Shoots 3 projectiles in a tiny arc every 2s, each dealing 1 dmg. After hitting the enemy 3 times, teleports to a random free spot in the arena." },
+  19: { name: "Sapphire",color: "#2255cc", type: "sapphire",desc: "When hit, gain +4 HP, +8px Size, and +1 Damage. (Cooldown: 4s)" },
 };
