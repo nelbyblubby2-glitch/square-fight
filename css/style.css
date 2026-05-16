@@ -82,16 +82,34 @@ canvas {
   gap: 12px;
 }
 
+/* Ensure the left side columns pack tightly to the left */
+.hud-side-left .hud-charge-col {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+/* Ensure the right side columns reverse direction and pack tightly to the right */
+.hud-side-right .hud-charge-col {
+  display: flex;
+  flex-direction: row-reverse; /* Flips the horizontal alignment order */
+  justify-content: flex-start; /* Aligns them to the outer right edge */
+  align-items: flex-end;
+  gap: 12px;
+}
+
 .charge-wrap {
   width: 10px;
-  height: 60px;
+  height: 55px; /* This keeps your wrapper fixed height */
   background: rgba(255,255,255,0.1);
   border-radius: 5px;
-  overflow: hidden;
   display: flex;
-  flex-direction: column-reverse;
+  flex-direction: column-reverse; /* Keeps fills climbing from bottom-up */
   opacity: 0;
   transition: opacity 0.15s;
+  box-sizing: border-box; /* Ensures padding doesn't alter the 60px height */
 }
 
 .charge-fill {
@@ -533,7 +551,7 @@ canvas {
 
 /* ── Scaling stat badge ── */
 .scale-badge {
-  display: flex;
+  display: flex; /* Default state */
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -584,7 +602,7 @@ canvas {
   .preview-square { width: 80px; height: 80px; margin-bottom: 10px !important; }
   .square-name-label { font-size: 1.5rem; margin-bottom: 10px !important; }
   .skill-box { width: 250px; height: 80px; }
-  .grid-layout { gap: 10px; max-height: 160px; }
+  .grid-layout { gap: 10px; max-height: 360px; }
   .grid-item { width: 50px; height: 50px; }
   #start-fight-btn { padding: 15px 60px; font-size: 16px; }
 
@@ -781,7 +799,20 @@ canvas {
   border: 1px solid rgba(255,255,255,0.1);
   background: rgba(255,255,255,0.04);
   transition: transform 0.18s, background 0.18s, box-shadow 0.18s;
-  box-sizing: border-box;
+  box-sizing: border-box; /* Ensures padding stays inside the height constraint */
+
+  /* ── FIXED HEIGHT & SCROLLING ── */
+  height: 180px;        /* Forces all cards to have the exact same height */
+  overflow-y: auto;     /* Enables vertical scrolling for long passive text */
+  overflow-x: hidden;    /* Cleans up horizontal overflow potential */
+  
+  /* Optional: Hides the default scrollbar line for a clean pixel/arcade UI */
+  scrollbar-width: none;            /* Firefox */
+  -ms-overflow-style: none;         /* IE/Edge */
+}
+
+.rogue-char-card::-webkit-scrollbar {
+  display: none;
 }
 
 .rogue-available {
@@ -804,6 +835,7 @@ canvas {
   width: 64px;
   height: 64px;
   border-radius: 12px;
+  flex-shrink: 0;
 }
 
 .rogue-locked .rogue-char-preview {

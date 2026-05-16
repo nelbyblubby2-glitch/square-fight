@@ -39,16 +39,16 @@ const rogueDefs = {
 
 // Enemy progression per floor
 const rogueEnemies = [
-  { id: 1,  hpScale: 1   },  // floor 1: Red at 50% HP (25 HP effectively — same start)
-  { id: 2,  hpScale: 1   },  // floor 2: Green
-  { id: 3,  hpScale: 1   },  // floor 3: Blue
-  { id: 5,  hpScale: 1.5 },  // floor 4: White
-  { id: 9,  hpScale: 1.5 },  // floor 5: Orange
-  { id: 7,  hpScale: 2   },  // floor 6: Purple
-  { id: 14, hpScale: 2   },  // floor 7: Lime
-  { id: 16, hpScale: 2.5 },  // floor 8: Gray
-  { id: 18, hpScale: 2.5 },  // floor 9: Mist
-  { id: 17, hpScale: 3   },  // floor 10: Gold (boss)
+  { id: 1,  hpScale: 1   },
+  { id: 2,  hpScale: 1   },
+  { id: 3,  hpScale: 1   },
+  { id: 10, hpScale: 1.5 },
+  { id: 5,  hpScale: 1.5 },
+  { id: 6,  hpScale: 2   },
+  { id: 4,  hpScale: 2   },
+  { id: 8,  hpScale: 2.5 },
+  { id: 7,  hpScale: 2.5 },
+  { id: 9,  hpScale: 3   },
 ];
 
 // ── Start a roguelike run ─────────────────────────────────────────────────────

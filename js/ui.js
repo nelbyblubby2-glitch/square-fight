@@ -83,12 +83,18 @@ function getChargeBar(s) {
       };
     case "green": {
       // Dynamic hit counter segments based on threshold reduction
-      const threshold = Math.max(1, 3 - (s._roguePassiveThresholdReduction || 0));
+      const threshold = Math.max(
+        1,
+        3 - (s._roguePassiveThresholdReduction || 0),
+      );
       // At threshold 1 (max reduction = 2 picks), no bar needed
       if (threshold === 1) return null;
       return {
         segments: threshold,
-        filled: s.greenFlashTimer > 0 ? threshold : Math.min(s.greenHitCounter ?? 0, threshold),
+        filled:
+          s.greenFlashTimer > 0
+            ? threshold
+            : Math.min(s.greenHitCounter ?? 0, threshold),
         color: s.def.color,
       };
     }
@@ -123,9 +129,10 @@ function getChargeBar(s) {
       };
     case "sapphire":
       return {
-        pct: s.sapphirePassiveCD > 0
-          ? Math.min(100, (1 - s.sapphirePassiveCD / COOLDOWN_FRAMES) * 100)
-          : 100,
+        pct:
+          s.sapphirePassiveCD > 0
+            ? Math.min(100, (1 - s.sapphirePassiveCD / COOLDOWN_FRAMES) * 100)
+            : 100,
         color: s.def.color,
         ready: !(s.sapphirePassiveCD > 0),
       };
@@ -154,7 +161,10 @@ function getChargeBar2(s) {
       };
     }
     case "green": {
-      const shootCooldown = Math.max(60, 180 - (s._rogueShootCooldownReduction || 0) * 60);
+      const shootCooldown = Math.max(
+        60,
+        180 - (s._rogueShootCooldownReduction || 0) * 60,
+      );
       return {
         pct:
           s.cooldownTimer > 0
@@ -176,7 +186,9 @@ function getChargeBar3(s) {
       if (!s._rogueBounceEmpowerThreshold) return null;
       return {
         segments: s._rogueBounceEmpowerThreshold,
-        filled: s._rogueBounceEmpowered ? s._rogueBounceEmpowerThreshold : (s._rogueBounceCount || 0),
+        filled: s._rogueBounceEmpowered
+          ? s._rogueBounceEmpowerThreshold
+          : s._rogueBounceCount || 0,
         color: s.def.color,
         alwaysFull: s._rogueBounceEmpowered, // pulsing full while empower is active
       };
@@ -240,7 +252,7 @@ function updateHUD() {
     const previewHp = Math.min(
       currentHp,
       s.poisonPreviewHp !== null ? s.poisonPreviewHp : currentHp,
-      s.bleedPreviewHp !== null  ? s.bleedPreviewHp  : currentHp
+      s.bleedPreviewHp !== null ? s.bleedPreviewHp : currentHp,
     );
 
     nameEl.innerText = s.def.name;
@@ -263,16 +275,15 @@ function updateHUD() {
 
     cdFill.style.width = `${(s.actionCooldown / ACTION_COOLDOWN) * 100}%`;
 
-    cdFill.style.backgroundColor = s.def.color; // Matches the bar to the character's color
-    cdFill.style.boxShadow = `0 0 8px ${s.def.color}`; // Adds the "glow" effect
-    cdFill.style.opacity = "1"; // Increases visibility (the CSS has it at 0.4)
+    cdFill.style.backgroundColor = s.def.color; 
+    cdFill.style.boxShadow = `0 0 8px ${s.def.color}`; 
+    cdFill.style.opacity = "1"; 
 
     // -- Primary charge bar (opacity-toggled, never removed from DOM) ----------
     const chargeWrap = document.getElementById(`charge-bar-${side}-wrap`);
     const chargeInfo = getChargeBar(s);
 
     if (chargeInfo && chargeInfo.segments) {
-      // Segmented mode — original style: no bg on wrap, segments float freely
       if (chargeWrap.dataset.mode !== "seg" + chargeInfo.segments) {
         chargeWrap.innerHTML = "";
         chargeWrap.dataset.mode = "seg" + chargeInfo.segments;
@@ -284,21 +295,30 @@ function updateHUD() {
         chargeWrap.style.gap = "4px";
         chargeWrap.style.background = "none";
         chargeWrap.style.borderRadius = "5px";
-        chargeWrap.style.padding = "2px"; // Optional: adds a little breathing room inside the track
+        chargeWrap.style.padding = "2px"; 
         chargeWrap.style.boxSizing = "border-box";
+        
         for (let i = 0; i < chargeInfo.segments; i++) {
           const seg = document.createElement("div");
           seg.style.cssText =
-            "width:10px;height:12px;border-radius:3px;background:rgba(255,255,255,0.1);transition:none;flex-shrink:0;";
+            "width:10px; flex:1; min-height:0; background:rgba(255,255,255,0.12); transition:none; flex-shrink:0;";
+
+          if (i === 0) {
+            seg.style.borderTopLeftRadius = "5px";
+            seg.style.borderTopRightRadius = "5px";
+          }
+          if (i === chargeInfo.segments - 1) {
+            seg.style.borderBottomLeftRadius = "5px";
+            seg.style.borderBottomRightRadius = "5px";
+          }
           chargeWrap.appendChild(seg);
         }
       }
       const segs = chargeWrap.children;
       const isFull = chargeInfo.filled >= chargeInfo.segments;
 
-      // Flash delay: when bar just became full, hold the lit state briefly
       if (isFull) {
-        chargeWrap.dataset.flashTimer = "8";
+        chargeWrap.dataset.flashTimer = "1";
       }
       const flashTimer = parseInt(chargeWrap.dataset.flashTimer || "0", 10);
       const showFull = isFull || flashTimer > 0;
@@ -310,15 +330,17 @@ function updateHUD() {
         const filled = showFull ? true : i < chargeInfo.filled;
         segs[chargeInfo.segments - 1 - i].style.backgroundColor = filled
           ? chargeInfo.color
-          : "rgba(255, 255, 255, 0.25)";
-        segs[chargeInfo.segments - 1 - i].style.boxShadow = filled
-          ? `0 0 6px ${chargeInfo.color}`
-          : "none";
-        segs[chargeInfo.segments - 1 - i].style.opacity = filled ? "1" : "0.4";
+          : "rgba(255, 255, 255, 0.67)";
+        segs[chargeInfo.segments - 1 - i].style.boxShadow = "none";
+        segs[chargeInfo.segments - 1 - i].style.opacity = showFull
+          ? "1"
+          : filled
+            ? "0.4"
+            : "0.15";
       }
       chargeWrap.style.opacity = "1";
+      chargeWrap.style.display = "flex";
     } else if (chargeInfo) {
-      // Fill bar mode — wrap has bg track, fill glows
       if (chargeWrap.dataset.mode !== "fill") {
         chargeWrap.innerHTML = "";
         chargeWrap.dataset.mode = "fill";
@@ -338,11 +360,13 @@ function updateHUD() {
       const fillBar = chargeWrap.firstChild;
       fillBar.style.height = `${chargeInfo.pct}%`;
       fillBar.style.backgroundColor = chargeInfo.color;
-      fillBar.style.opacity = "1"; // Set to 1 to match the segmented "filled" state
-      fillBar.style.boxShadow = `0 0 10px ${chargeInfo.color}`; // Increased from 4px/8px to match segment glow
+      fillBar.style.opacity = "1"; 
+      fillBar.style.boxShadow = `0 0 10px ${chargeInfo.color}`; 
       chargeWrap.style.opacity = "1";
+      chargeWrap.style.display = "flex";
     } else {
       chargeWrap.style.opacity = "0";
+      chargeWrap.style.display = "none";
       chargeWrap.dataset.mode = "";
     }
 
@@ -351,7 +375,6 @@ function updateHUD() {
     const chargeInfo2 = getChargeBar2(s);
     if (charge2Wrap) {
       if (chargeInfo2 && chargeInfo2.segments) {
-        // Segmented mode for secondary bar
         if (charge2Wrap.dataset.mode !== "seg2_" + chargeInfo2.segments) {
           charge2Wrap.innerHTML = "";
           charge2Wrap.dataset.mode = "seg2_" + chargeInfo2.segments;
@@ -365,19 +388,28 @@ function updateHUD() {
           charge2Wrap.style.borderRadius = "5px";
           charge2Wrap.style.padding = "2px";
           charge2Wrap.style.boxSizing = "border-box";
+          
           for (let i = 0; i < chargeInfo2.segments; i++) {
             const seg = document.createElement("div");
             seg.style.cssText =
-              "width:10px;height:12px;border-radius:3px;background:rgba(255,255,255,0.1);transition:none;flex-shrink:0;";
+              "width:10px; flex:1; min-height:0; background:rgba(255,255,255,0.12); transition:none; flex-shrink:0;";
+
+            if (i === 0) {
+              seg.style.borderTopLeftRadius = "5px";
+              seg.style.borderTopRightRadius = "5px";
+            }
+            if (i === chargeInfo2.segments - 1) {
+              seg.style.borderBottomLeftRadius = "5px";
+              seg.style.borderBottomRightRadius = "5px";
+            }
             charge2Wrap.appendChild(seg);
           }
         }
         const segs2 = charge2Wrap.children;
         const isFull2 = chargeInfo2.filled >= chargeInfo2.segments;
 
-        // Flash delay: hold full state briefly
         if (isFull2) {
-          charge2Wrap.dataset.flashTimer = "8";
+          charge2Wrap.dataset.flashTimer = "1";
         }
         const flashTimer2 = parseInt(charge2Wrap.dataset.flashTimer || "0", 10);
         const showFull2 = isFull2 || flashTimer2 > 0;
@@ -389,15 +421,17 @@ function updateHUD() {
           const filled = showFull2 ? true : i < chargeInfo2.filled;
           segs2[chargeInfo2.segments - 1 - i].style.backgroundColor = filled
             ? chargeInfo2.color
-            : "rgba(255, 255, 255, 0.25)";
-          segs2[chargeInfo2.segments - 1 - i].style.boxShadow = filled
-            ? `0 0 6px ${chargeInfo2.color}`
-            : "none";
-          segs2[chargeInfo2.segments - 1 - i].style.opacity = filled ? "1" : "0.4";
+            : "rgba(255, 255, 255, 0.67)";
+          segs2[chargeInfo2.segments - 1 - i].style.boxShadow = "none";
+          segs2[chargeInfo2.segments - 1 - i].style.opacity = showFull2
+            ? "1"
+            : filled
+              ? "0.4"
+              : "0.15";
         }
         charge2Wrap.style.opacity = "1";
+        charge2Wrap.style.display = "flex";
       } else if (chargeInfo2) {
-        // Fill mode
         if (charge2Wrap.dataset.mode !== "fill2") {
           charge2Wrap.innerHTML = "";
           charge2Wrap.dataset.mode = "fill2";
@@ -422,8 +456,10 @@ function updateHUD() {
           ? `0 0 8px ${chargeInfo2.color}`
           : `0 0 4px ${chargeInfo2.color}`;
         charge2Wrap.style.opacity = "1";
+        charge2Wrap.style.display = "flex";
       } else {
         charge2Wrap.style.opacity = "0";
+        charge2Wrap.style.display = "none";
         charge2Wrap.dataset.mode = "";
       }
     }
@@ -446,21 +482,28 @@ function updateHUD() {
           charge3Wrap.style.borderRadius = "5px";
           charge3Wrap.style.padding = "2px";
           charge3Wrap.style.boxSizing = "border-box";
+          
           for (let i = 0; i < chargeInfo3.segments; i++) {
             const seg = document.createElement("div");
             seg.style.cssText =
-              "width:10px;height:12px;border-radius:3px;background:rgba(255,255,255,0.1);transition:none;flex-shrink:0;";
+              "width:10px; flex:1; min-height:0; background:rgba(255,255,255,0.12); transition:none; flex-shrink:0;";
+
+            if (i === 0) {
+              seg.style.borderTopLeftRadius = "5px";
+              seg.style.borderTopRightRadius = "5px";
+            }
+            if (i === chargeInfo3.segments - 1) {
+              seg.style.borderBottomLeftRadius = "5px";
+              seg.style.borderBottomRightRadius = "5px";
+          }
             charge3Wrap.appendChild(seg);
           }
         }
         const segs3 = charge3Wrap.children;
         const isFull3 = chargeInfo3.filled >= chargeInfo3.segments;
 
-        // When empower is active, always show full and pulse
-        if (chargeInfo3.alwaysFull) {
-          charge3Wrap.dataset.flashTimer = "8";
-        } else if (isFull3) {
-          charge3Wrap.dataset.flashTimer = "8";
+        if (chargeInfo3.alwaysFull || isFull3) {
+          charge3Wrap.dataset.flashTimer = "1";
         }
         const flashTimer3 = parseInt(charge3Wrap.dataset.flashTimer || "0", 10);
         const showFull3 = chargeInfo3.alwaysFull || isFull3 || flashTimer3 > 0;
@@ -472,15 +515,19 @@ function updateHUD() {
           const filled = showFull3 ? true : i < chargeInfo3.filled;
           segs3[chargeInfo3.segments - 1 - i].style.backgroundColor = filled
             ? chargeInfo3.color
-            : "rgba(255, 255, 255, 0.25)";
-          segs3[chargeInfo3.segments - 1 - i].style.boxShadow = filled
-            ? `0 0 6px ${chargeInfo3.color}`
-            : "none";
-          segs3[chargeInfo3.segments - 1 - i].style.opacity = filled ? "1" : "0.4";
+            : "rgba(255, 255, 255, 0.67)";
+          segs3[chargeInfo3.segments - 1 - i].style.boxShadow = "none";
+          segs3[chargeInfo3.segments - 1 - i].style.opacity = showFull3
+            ? "1"
+            : filled
+              ? "0.4"
+              : "0.15";
         }
         charge3Wrap.style.opacity = "1";
+        charge3Wrap.style.display = "flex";
       } else {
         charge3Wrap.style.opacity = "0";
+        charge3Wrap.style.display = "none";
         charge3Wrap.dataset.mode = "";
       }
     }
@@ -494,6 +541,7 @@ function updateHUD() {
     if (scaleWrap) {
       if (scaleInfo) {
         scaleWrap.style.opacity = "1";
+        scaleWrap.style.display = "flex";
         if (scaleVal) {
           scaleVal.innerText = scaleInfo.value;
           scaleVal.style.color = s.def.color;
@@ -501,6 +549,7 @@ function updateHUD() {
         if (scaleLbl) scaleLbl.innerText = scaleInfo.label;
       } else {
         scaleWrap.style.opacity = "0";
+        scaleWrap.style.display = "none";
       }
     }
   });
