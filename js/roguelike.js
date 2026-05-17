@@ -41,7 +41,7 @@ const rogueDefs = {
     type: "blue",
     startHP: 100,
     startPower: 1,
-    passiveDesc: "Every 5s: shoot a slow projectile that releases a BluePulse on hit or when it leaves the arena. Each hit grows projectile and pulse damage.",
+    passiveDesc: "Shoot projectiles that explode on impact every 5s. Increase explosion size and +2 damage increase per hit.",
   },
 };
 
@@ -853,5 +853,3 @@ function _advanceToNextFloor() {
   rogueState.hp = rogueState.maxHp;
   startRogueFloor();
 }
-
-

@@ -41,8 +41,13 @@ let brownSpikes    = [];
 
 let limeProjectiles = [];
 let grayStaticClones = [];   // Gray's freeze-trap clones
-let goldConstructs   = [];   // Gold's static healing constructs
+let goldConstructs   = [];   // Topaz's static healing constructs
+let goldCoins        = [];   // Gold's clash-dropped collectible coins
 let mistProjectiles  = [];   // Mist's triple-shot projectiles
+let magentaBeams     = [];   // Magenta's tether beams
+let emeraldProjectiles = []; // Emerald's barrage bullets
+let rubyProjectiles    = []; // Ruby's bouncing projectile + laser
+let rubyLasers         = []; // Ruby's permanent wall-to-wall laser lines
 let bluePulses   = [];   // Blue's exploding projectile pulses
 
 // ── Game state ────────────────────────────────────────────────────────────────

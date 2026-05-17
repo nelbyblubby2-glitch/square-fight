@@ -41,10 +41,17 @@ class Square {
     // Gray freeze (any square can be frozen by Gray's clone trap)
     this.grayFreezeTimer = 0;
 
-    // Bleed (used by Scarlet)
+    // Bleed (used by Crimson and other characters)
     this.bleedTimer     = 0;
     this.bleedDmgTimer  = 0;
     this.bleedPreviewHp = null;
+    this.bleedColor     = "#cc1a1a"; // color of whoever applied bleed
+
+    // Poison (used by Purple and others)
+    this.poisonColor    = "#b33eff"; // color of whoever applied poison
+
+    // Scarlet delayed damage (stored on the enemy; detonated when Scarlet bullet hits)
+    this.scarletDelayed    = 0;   // pending damage amount
 
     // Let the behavior initialize any extra state it needs
     const b = BehaviorRegistry[this.def.type];
@@ -57,24 +64,47 @@ class Square {
 
   // ── Shared helpers ────────────────────────────────────────────────────────────
 
-  applyPoison(extraFrames) {
+  applyPoison(extraFrames, color) {
     this.poisonTimer += extraFrames;
+    if (color) this.poisonColor = color;
     const totalPoisonDamage = Math.ceil(this.poisonTimer / 60) * 2;
     this.poisonPreviewHp = Math.max(0, this.hp - totalPoisonDamage);
   }
 
-  applyBleed(frames) {
+  applyBleed(frames, color) {
     this.bleedTimer += frames;  // stacks additively
+    if (color) this.bleedColor = color;
     const totalBleedDamage = Math.ceil(this.bleedTimer / 60);
     this.bleedPreviewHp = Math.max(0, this.hp - totalBleedDamage);
   }
 
-  // Instantly burst all remaining bleed damage (called by Scarlet bullet on hit)
+  // Add scarlet delayed damage (shown as health bar preview)
+  addScarletDelayed(dmg) {
+    this.scarletDelayed += dmg;
+    this._updateScarletPreview();
+  }
+
+  _updateScarletPreview() {
+    // Use bleedPreviewHp to show scarlet pending damage on the health bar
+    const totalPending = this.scarletDelayed + Math.ceil(this.bleedTimer / 60);
+    this.bleedPreviewHp = totalPending > 0 ? Math.max(0, this.hp - totalPending) : null;
+  }
+
+  // Detonate all stored Scarlet delayed damage — called when Scarlet bullet hits
+  burstScarletDelayed() {
+    const dmg = this.scarletDelayed;
+    this.scarletDelayed = 0;
+    this._updateScarletPreview();
+    return dmg;
+  }
+
+  // Instantly burst all remaining bleed damage (kept for compatibility)
   burstBleed() {
     if (this.bleedTimer <= 0) return 0;
     const dmg = Math.ceil(this.bleedTimer / 60);
     this.bleedTimer    = 0;
     this.bleedDmgTimer = 0;
+    this.bleedPreviewHp = null;
     return dmg;
   }
 
@@ -126,7 +156,7 @@ class Square {
       this.poisonDmgTimer++;
       if (this.poisonDmgTimer >= 60) {
         this.hp -= 2;
-        floatingNumbers.push(new FloatingNumber(this.x + this.size / 2, this.y, "2", "#b33eff"));
+        floatingNumbers.push(new FloatingNumber(this.x + this.size / 2, this.y, "2", this.poisonColor || "#b33eff"));
         this.poisonDmgTimer = 0;
         this.onTakeDamage();
       }
@@ -137,15 +167,20 @@ class Square {
   }
 
   _updateBleed() {
-    if (this.bleedTimer <= 0) { this.bleedDmgTimer = 0; this.bleedPreviewHp = null; return; }
+    if (this.bleedTimer <= 0) {
+      this.bleedDmgTimer = 0;
+      if (this.scarletDelayed <= 0) this.bleedPreviewHp = null;
+      return;
+    }
     this.bleedTimer--;
     this.bleedDmgTimer++;
     if (this.bleedDmgTimer >= 60) {
       this.hp -= 1;
-      floatingNumbers.push(new FloatingNumber(this.x + this.size / 2, this.y, "1", "#cc1a1a"));
+      floatingNumbers.push(new FloatingNumber(this.x + this.size / 2, this.y, "1", this.bleedColor || "#cc1a1a"));
       this.bleedDmgTimer = 0;
       this.onTakeDamage();
     }
+    this._updateScarletPreview();
   }
 
   _updateMovement() {

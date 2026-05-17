@@ -88,7 +88,7 @@ class Pulse {
     this.growth    = 12;
     this.maxSize   = 2500;
     this.hitList   = [];
-    this.color     = "#ffa500";
+    this.color     = owner.def.color;
     this.thickness = 25;
   }
 
@@ -121,7 +121,7 @@ class Pulse {
         this.hitList.push(target);
         if (target.onTakeDamage) target.onTakeDamage();
         if (!isClone) SFX.takeDamage();
-        floatingNumbers.push(new FloatingNumber(cx, target.y, damage.toString(), "#ffffff"));
+        floatingNumbers.push(new FloatingNumber(cx, target.y, damage.toString(), this.color));
         spawnSquareParticles(cx, cy, this.color, 8, 1, 3, 5);
       }
     });
@@ -164,11 +164,13 @@ class BluePulse {
   update() {
     this.size += this.growth;
     if (this.size > this.maxSize) return;
+    if (typeof gameOver !== 'undefined' && gameOver) return;
 
     const halfSize = this.size / 2;
 
     [...squares, ...clones].forEach((target) => {
       if (target === this.owner || this.hitList.includes(target)) return;
+      if (target.hp <= 0) return;
 
       const cx    = target.x + target.size / 2;
       const cy    = target.y + target.size / 2;
@@ -191,7 +193,7 @@ class BluePulse {
             this.owner.blueHits += 2;
           }
         }
-        floatingNumbers.push(new FloatingNumber(cx, target.y, dmg.toString(), "#ffffff"));
+        floatingNumbers.push(new FloatingNumber(cx, target.y, dmg.toString(), this.color));
         spawnSquareParticles(cx, cy, this.color, 8, 1, 3, 5);
       }
     });
@@ -220,7 +222,7 @@ class FollowingPulse {
     this.delay     = 120;
     this.active    = false;
     this.hitList   = [];
-    this.color     = "#ff69b4";
+    this.color     = owner.def.color;
     this.power     = power;
     this.thickness = 25;
   }
@@ -265,7 +267,7 @@ class FollowingPulse {
         this.hitList.push(victim);
         if (victim.onTakeDamage) victim.onTakeDamage();
         if (!isClone) SFX.takeDamage();
-        floatingNumbers.push(new FloatingNumber(vx, victim.y, damage.toString(), "#ffffff"));
+        floatingNumbers.push(new FloatingNumber(vx, victim.y, damage.toString(), this.color));
         spawnSquareParticles(vx, vy, this.color, 8, 1, 3, 5);
       }
     });

@@ -47,11 +47,10 @@ function resolveCollision(s1, s2) {
 
   if (s1.hitImmunityTimer > 0 || s2.hitImmunityTimer > 0) return;
 
-  if (s1.def.type === "purple") { s2.applyPoison(60 + s1.poisonDurationBonus); }
-  if (s2.def.type === "purple") { s1.applyPoison(60 + s2.poisonDurationBonus); }
+  if (s1.def.type === "purple") { s2.applyPoison(60 + s1.poisonDurationBonus, s1.def.color); }
+  if (s2.def.type === "purple") { s1.applyPoison(60 + s2.poisonDurationBonus, s2.def.color); }
 
-  if (s1.def.type === "scarlet") s2.applyBleed(300);
-  if (s2.def.type === "scarlet") s1.applyBleed(300);
+  // Scarlet delayed damage is applied via onHitEnemy (characters.js)
 
   const d1 = s2.getCollisionDamage();
   // Apply Red's bounce empower as a one-time +10 to this clash's damage only
@@ -78,8 +77,8 @@ function resolveCollision(s1, s2) {
   s1.onTakeDamage();  s2.onTakeDamage();
   s1.onHitEnemy();    s2.onHitEnemy();
   SFX.takeDamage();
-  floatingNumbers.push(new FloatingNumber(s1.x + s1.size / 2, s1.y, actual_d1, "#ffffff"));
-  floatingNumbers.push(new FloatingNumber(s2.x + s2.size / 2, s2.y, actual_d2, "#ffffff"));
+  floatingNumbers.push(new FloatingNumber(s1.x + s1.size / 2, s1.y, actual_d1, s2.def.color));
+  floatingNumbers.push(new FloatingNumber(s2.x + s2.size / 2, s2.y, actual_d2, s1.def.color));
   spawnHitEffect(hitX, hitY, "#ffffff");
 
   s1.hitImmunityTimer = HIT_IMMUNITY;
@@ -124,13 +123,13 @@ function resolveCompanionCollision(c, s) {
       c.damage++;
       c.speedBoostTimer = 120;
       c.canDamage = true;
-      spawnSquareParticles(c.x + c.size / 2, c.y + c.size / 2, "#ffffff", 5, 1, 3, 5);
+      spawnSquareParticles(c.x + c.size / 2, c.y + c.size / 2, c.def.color, 5, 1, 3, 5);
     } else if (c.canDamage) {
       s.hp -= c.damage;
       s.onTakeDamage();
       SFX.takeDamage();
-      floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, c.damage, "#ffffff"));
-      spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, "#ffffff", 5, 1, 3, 5);
+      floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, c.damage, c.owner ? c.owner.def.color : c.def.color));
+      spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, c.def.color, 5, 1, 3, 5);
       triggerHitFreeze();
       c.canDamage = false;
     }
@@ -149,8 +148,7 @@ function resolveCompanionCollision(c, s) {
       if (cDist >= (c.size + clone.size) / 2) continue;
 
       clone.hp = 0;
-      const cloneColor = (clone instanceof Clone) ? "#87ceeb" : "#6C5CE7";
-      spawnSquareParticles(clone.x + clone.size / 2, clone.y + clone.size / 2, cloneColor, 8, 1, 4, 6);
+      spawnSquareParticles(clone.x + clone.size / 2, clone.y + clone.size / 2, clone.def.color, 8, 1, 4, 6);
 
       const cnx  = cdx / (cDist || 1);
       const cny  = cdy / (cDist || 1);
@@ -176,7 +174,7 @@ function resolveCloneCollision(c, s) {
   c.hp  = 0;
   if (s.onTakeDamage) s.onTakeDamage();
   SFX.takeDamage();
-  floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, dmg, "#ffffff"));
+  floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, dmg, c.def ? c.def.color : "#ffffff"));
   spawnSquareParticles((c.x + s.x) / 2, (c.y + s.y) / 2, c.def.color, 8, 1, 3, 5);
 }
 
@@ -206,15 +204,17 @@ function resolveConstructCollision(construct, s) {
     s.normalizeVelocity();
   }
 
-  // Heal gold owner (with construct's own cooldown)
+  // Heal the construct owner when the enemy hits it (amount varies by owner type)
   if (construct.hitCooldown <= 0) {
-    construct.owner.hp = Math.min(100, construct.owner.hp + 3);
+    const healAmt  = construct._isTopaz ? 3 : 3;
+    const glowColor = construct.owner.def.color;
+    construct.owner.hp = Math.min(100, construct.owner.hp + healAmt);
     SFX.heal();
     floatingNumbers.push(new FloatingNumber(
       construct.owner.x + construct.owner.size / 2,
-      construct.owner.y - 10, "+3", "#00ff44"
+      construct.owner.y - 10, `+${healAmt}`, "#00ff44"
     ));
-    spawnSquareParticles(construct.x + construct.size / 2, construct.y + construct.size / 2, "#FFD700", 6, 1, 3, 4);
+    spawnSquareParticles(construct.x + construct.size / 2, construct.y + construct.size / 2, glowColor, 6, 1, 3, 4);
     construct.hitCooldown = 40;
   }
 }

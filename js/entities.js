@@ -65,8 +65,8 @@ class Projectile {
         this.mainOwner.pinkBounceCount++;
       }
 
-      if (Math.random() > 0.4) {
-        const p  = new Particle(this.x, this.y, "#ff69b4", 4);
+      if (Math.random() > 0.4 && this.x >= arena.x && this.x <= arena.x + arena.w && this.y >= arena.y && this.y <= arena.y + arena.h) {
+        const p  = new Particle(this.x, this.y, this.mainOwner.def.color, 4);
         p.vx     = p.vx * 0.15;
         p.vy     = p.vy * 0.15;
         p.decay  = 0.04;
@@ -83,14 +83,31 @@ class Projectile {
         if (this.y >= arena.y + arena.h) { this.vy = -Math.abs(this.vy); }
       }
 
-      const density = 10;
-      for (let i = 0; i < density; i++) {
-        const t    = i / density;
-        const p    = new Particle(this.x - 3 - this.vx * t, this.y - 3 - this.vy * t, "#00ff44", 6);
-        p.vx       = 0;
-        p.vy       = 0;
-        p.decay    = 0.8;
-        particles.push(p);
+      if (this.x >= arena.x && this.x <= arena.x + arena.w && this.y >= arena.y && this.y <= arena.y + arena.h) {
+        const density = 10;
+        for (let i = 0; i < density; i++) {
+          const t    = i / density;
+          const p    = new Particle(this.x - 3 - this.vx * t, this.y - 3 - this.vy * t, this.mainOwner.def.color, 6);
+          p.vx       = 0;
+          p.vy       = 0;
+          p.decay    = 0.8;
+          particles.push(p);
+        }
+      }
+    }
+
+    // Scarlet and Gray projectiles: same particle trail as Green
+    if (this.isScarlet || this.mainOwner.def.type === "gray") {
+      if (this.x >= arena.x && this.x <= arena.x + arena.w && this.y >= arena.y && this.y <= arena.y + arena.h) {
+        const density = 10;
+        for (let i = 0; i < density; i++) {
+          const t    = i / density;
+          const p    = new Particle(this.x - 3 - this.vx * t, this.y - 3 - this.vy * t, this.mainOwner.def.color, 6);
+          p.vx       = 0;
+          p.vy       = 0;
+          p.decay    = 0.8;
+          particles.push(p);
+        }
       }
     }
 
@@ -125,9 +142,24 @@ class Projectile {
       }
       return;
     }
-    ctx.fillStyle = this.isPink
-      ? "#ff69b4"
-      : this.mainOwner.def.color;
+    // Gold coin projectile — green-style particle trail in gold color
+    if (this._isGoldCoin) {
+      if (this.x >= arena.x && this.x <= arena.x + arena.w && this.y >= arena.y && this.y <= arena.y + arena.h) {
+        const density = 10;
+        for (let i = 0; i < density; i++) {
+          const t = i / density;
+          const p = new Particle(this.x - 3 - this.vx * t, this.y - 3 - this.vy * t, this.mainOwner.def.color, 6);
+          p.vx    = 0;
+          p.vy    = 0;
+          p.decay = 0.8;
+          particles.push(p);
+        }
+      }
+      ctx.fillStyle = this.mainOwner.def.color;
+      ctx.fillRect(this.x - 4, this.y - 4, 8, 8);
+      return;
+    }
+    ctx.fillStyle = this.mainOwner.def.color;
     ctx.fillRect(this.x - 4, this.y - 4, 8, 8);
   }
 }
@@ -190,8 +222,9 @@ class Clone {
     this.hp          = 1;
     this.hitImmunity = 0;
 
+    this.def = mainOwner.def;  // always use the owner's own color/def
+
     if (type === "indigo") {
-      this.def          = squareDefs[10];
       this.currentSpeed = BASE_SPEED;
       this.vx           = (Math.random() - 0.5) * 10;
       this.vy           = (Math.random() - 0.5) * 10;
@@ -199,7 +232,6 @@ class Clone {
       this.indigoShootTimer = 120;
       this.damage           = 1;
     } else {
-      this.def          = squareDefs[13];
       this.currentSpeed = BASE_SPEED;
       const angle = Math.random() * Math.PI * 2;
       this.vx     = Math.cos(angle) * this.currentSpeed;
@@ -287,9 +319,13 @@ class GiantSquare {
   }
 
   draw() {
-    ctx.fillStyle   = "rgba(0, 255, 255, 0.3)";
+    const _gc = this.owner.def.color;
+    const _r  = parseInt(_gc.slice(1,3), 16);
+    const _g  = parseInt(_gc.slice(3,5), 16);
+    const _b  = parseInt(_gc.slice(5,7), 16);
+    ctx.fillStyle   = `rgba(${_r},${_g},${_b},0.3)`;
     ctx.fillRect(this.x, this.y, this.size, this.size);
-    ctx.strokeStyle = "#00ffff";
+    ctx.strokeStyle = _gc;
     ctx.lineWidth   = 3;
     ctx.strokeRect(this.x, this.y, this.size, this.size);
   }
@@ -349,8 +385,8 @@ class BrownSpike {
         s.onTakeDamage();
         SFX.takeDamage();
         this.hitCooldown = 40;
-        floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, "1", "#c07840"));
-        spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, "#c07840", 5, 1, 3, 4);
+        floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, "1", this.owner.def.color));
+        spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, this.owner.def.color, 5, 1, 3, 4);
       }
     });
 
@@ -375,7 +411,7 @@ class BrownSpike {
     ctx.lineTo(this.pts[1].x, this.pts[1].y);
     ctx.lineTo(this.pts[2].x, this.pts[2].y);
     ctx.closePath();
-    ctx.fillStyle = "#c07840";
+    ctx.fillStyle = this.owner.def.color;
     ctx.fill();
     ctx.restore();
   }
@@ -441,7 +477,7 @@ class LimeProjectile {
       target.x = this.x - 1;
       target.y = this.y - 1;
 
-      spawnSquareParticles(this.x, this.y, "#aaff00", 8, 1, 3, 5);
+      spawnSquareParticles(this.x, this.y, this.owner.def.color, 8, 1, 3, 5);
     }
   }
 
@@ -477,8 +513,8 @@ class LimeProjectile {
         target.hp -= dmg;
         target.onTakeDamage();
         SFX.takeDamage();
-        floatingNumbers.push(new FloatingNumber(target.x + this.targetOriginalSize / 2, target.y, dmg.toString(), "#aaff00"));
-        spawnSquareParticles(target.x + target.size / 2, target.y + target.size / 2, "#aaff00", 6, 1, 3, 5);
+        floatingNumbers.push(new FloatingNumber(target.x + this.targetOriginalSize / 2, target.y, dmg.toString(), this.owner.def.color));
+        spawnSquareParticles(target.x + target.size / 2, target.y + target.size / 2, this.owner.def.color, 6, 1, 3, 5);
         triggerHitFreeze();
         this.wallHitCD = 15;
       }
@@ -521,14 +557,14 @@ class LimeProjectile {
     spawnSquareParticles(
       this.owner.x + this.owner.size / 2,
       this.owner.y + this.owner.size / 2,
-      "#aaff00", 10, 1, 4, 6
+      this.owner.def.color, 10, 1, 4, 6
     );
     triggerHitFreeze();
   }
 
   draw() {
     ctx.save();
-    ctx.strokeStyle = "#aaff00";
+    ctx.strokeStyle = this.owner.def.color;
     ctx.lineWidth   = 2;
     ctx.setLineDash([]);
     ctx.beginPath();
@@ -550,7 +586,7 @@ class LimeProjectile {
     // Plain dot at tip while flying
     if (this.active) {
       ctx.save();
-      ctx.fillStyle = "#aaff00";
+      ctx.fillStyle = this.owner.def.color;
       ctx.beginPath();
       ctx.arc(this.x, this.y, 5, 0, Math.PI * 2);
       ctx.fill();
@@ -570,7 +606,7 @@ class GrayStaticClone {
     this.size        = owner.size;
     this.life        = 90;          // 1.5s at 60fps
     this.hitCooldown = 0;
-    this.color       = "#acacac";
+    this.color       = owner.def.color;
   }
 
   update() {
@@ -586,7 +622,7 @@ class GrayStaticClone {
         // Freeze the enemy in place for 3s
         s.grayFreezeTimer = 180;
         this.life = 0;  // consume the clone on contact
-        spawnSquareParticles(this.x + this.size / 2, this.y + this.size / 2, "#acacac", 8, 1, 3, 5);
+        spawnSquareParticles(this.x + this.size / 2, this.y + this.size / 2, this.color, 8, 1, 3, 5);
       }
     });
   }
@@ -596,7 +632,7 @@ class GrayStaticClone {
     const alpha = Math.min(1, this.life / 10);  // fade out in last 10 frames
     ctx.save();
     ctx.globalAlpha = 0.45 * alpha;
-    ctx.fillStyle   = "#acacac";
+    ctx.fillStyle   = this.color;
     ctx.fillRect(this.x, this.y, this.size, this.size);
     ctx.globalAlpha = 1;
     ctx.restore();
@@ -614,7 +650,7 @@ class GoldConstruct {
     this.life        = 90;        // 1s "morphing" phase before fully formed
     this.formed      = false;
     this.hitCooldown = 0;
-    this.color       = "#FFD700";
+    this.color       = owner.def.color;
   }
 
   update() {
@@ -628,14 +664,15 @@ class GoldConstruct {
 
   draw() {
     ctx.save();
-    // Solid gold fill always - brighter during formation phase
+    const drawColor = this.color;
+    // Solid fill - brighter during formation phase
     const formAlpha = this.formed ? 0.55 : (0.2 + 0.35 * (1 - this.life / 90));
     ctx.globalAlpha = formAlpha;
-    ctx.fillStyle   = "#FFD700";
+    ctx.fillStyle   = drawColor;
     ctx.fillRect(this.x, this.y, this.size, this.size);
     ctx.globalAlpha = 1;
     // Solid border
-    ctx.strokeStyle = "#FFD700";
+    ctx.strokeStyle = drawColor;
     ctx.lineWidth   = 3;
     ctx.strokeRect(this.x, this.y, this.size, this.size);
     // Inner diamond marker when fully formed
@@ -649,7 +686,7 @@ class GoldConstruct {
       ctx.lineTo(cx, cy + r);
       ctx.lineTo(cx - r, cy);
       ctx.closePath();
-      ctx.fillStyle = "#FFD700";
+      ctx.fillStyle = drawColor;
       ctx.globalAlpha = 1;
       ctx.fill();
     }
@@ -687,8 +724,8 @@ class MistProjectile {
         s.hp -= 1;
         s.onTakeDamage();
         SFX.takeDamage();
-        floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, "1", "#ffffff"));
-        spawnSquareParticles(this.x, this.y, "#ddefff", 5, 1, 2, 4);
+        floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, "1", this.owner.def.color));
+        spawnSquareParticles(this.x, this.y, this.owner.def.color, 5, 1, 2, 4);
         triggerHitFreeze();
         this.alive = false;
         // Register hit for Mist teleport counter
@@ -703,7 +740,7 @@ class MistProjectile {
 
   draw() {
     if (!this.alive) return;
-    ctx.fillStyle = "#ddefff";
+    ctx.fillStyle = this.owner.def.color;
     ctx.fillRect(this.x - 4, this.y - 4, 8, 8);
   }
 }
@@ -729,12 +766,410 @@ function _mistTeleport(mist) {
 
     if (!blocked) {
       // Spawn teleport particles at old position
-      spawnSquareParticles(mist.x + mist.size / 2, mist.y + mist.size / 2, "#ddefff", 15, 1, 4, 7);
+      spawnSquareParticles(mist.x + mist.size / 2, mist.y + mist.size / 2, mist.def.color, 15, 1, 4, 7);
       mist.x = tx;
       mist.y = ty;
       // Spawn arrival particles
-      spawnSquareParticles(mist.x + mist.size / 2, mist.y + mist.size / 2, "#ddefff", 15, 1, 4, 7);
+      spawnSquareParticles(mist.x + mist.size / 2, mist.y + mist.size / 2, mist.def.color, 15, 1, 4, 7);
       return;
     }
   }
+}
+
+
+// ── Gold Coin (dropped on clash, collectible by the Gold square) ──────────────
+class GoldCoin {
+  constructor(dropX, dropY, owner) {
+    this.owner   = owner;         // the Gold square that dropped this coin
+    this.size    = 16;
+    this.x       = dropX - this.size / 2;
+    this.y       = dropY - this.size / 2;
+    // Launch in a random direction, then decelerate to a stop
+    const angle  = Math.random() * Math.PI * 2;
+    const launchSpeed = 4 + Math.random() * 3;
+    this.vx      = Math.cos(angle) * launchSpeed;
+    this.vy      = Math.sin(angle) * launchSpeed;
+    this.friction = 0.88;
+    this.alive   = true;
+    this.spinAngle = Math.random() * Math.PI * 2;
+    this.bobTimer  = Math.random() * Math.PI * 2; // phase offset for bob animation
+    this.uncollectableTimer = 40;  // ~0.67s grace window before Gold can pick it up
+  }
+
+  update() {
+    this.vx *= this.friction;
+    this.vy *= this.friction;
+    this.x  += this.vx;
+    this.y  += this.vy;
+
+    if (this.uncollectableTimer > 0) this.uncollectableTimer--;
+
+    // Clamp inside arena
+    this.x = Math.max(arena.x, Math.min(arena.x + arena.w - this.size, this.x));
+    this.y = Math.max(arena.y, Math.min(arena.y + arena.h - this.size, this.y));
+
+    this.spinAngle += 0.06;
+    this.bobTimer  += 0.07;
+  }
+
+  draw() {
+    const cx  = this.x + this.size / 2;
+    const cy  = this.y + this.size / 2 + Math.sin(this.bobTimer) * 2.5;
+    const r   = this.size / 2;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(this.spinAngle);
+    ctx.fillStyle = this.owner.def.color;
+    ctx.fillRect(-r, -r, this.size, this.size);
+    ctx.restore();
+  }
+}
+
+
+// ── Magenta's tether beam ─────────────────────────────────────────────────────
+// Fires toward the enemy at green-projectile speed. On hit, tethers the enemy
+// for 4s. While tethered, 50% of damage Magenta takes is reflected to the enemy.
+// Visually: a line from Magenta to the beam tip / tethered enemy. No hook head.
+class MagentaBeam {
+  constructor(owner) {
+    this.owner   = owner;
+    this.x       = owner.x + owner.size / 2;
+    this.y       = owner.y + owner.size / 2;
+
+    const target = squares.find(s => s !== owner);
+    const tx     = target ? target.x + target.size / 2 : this.x + 100;
+    const ty     = target ? target.y + target.size / 2 : this.y;
+    const dx     = tx - this.x;
+    const dy     = ty - this.y;
+    const dist   = Math.hypot(dx, dy) || 1;
+    const speed  = 15; // same as green projectile speed
+    this.vx      = (dx / dist) * speed;
+    this.vy      = (dy / dist) * speed;
+
+    this.active        = true;   // true = still flying toward enemy
+    this.tethered      = false;  // true = locked onto enemy
+    this.tetherTarget  = null;
+    this.tetherTimer   = 0;
+  }
+
+  update() {
+    if (this.active) {
+      this._updateFlight();
+    } else if (this.tethered) {
+      this._updateTether();
+    }
+  }
+
+  _updateFlight() {
+    this.x += this.vx;
+    this.y += this.vy;
+
+    // Out of arena — beam missed, remove
+    if (this.x < arena.x - 20 || this.x > arena.x + arena.w + 20 ||
+        this.y < arena.y - 20 || this.y > arena.y + arena.h + 20) {
+      this.active  = false;
+      this.owner.magentaBeamActive = false;
+      this.owner.magentaBeamCD     = 270; // 4.5s cooldown
+      return;
+    }
+
+    // Check hit on enemy square
+    const target = squares.find(s => s !== this.owner);
+    if (target &&
+        this.x > target.x && this.x < target.x + target.size &&
+        this.y > target.y && this.y < target.y + target.size) {
+      this.active       = false;
+      this.tethered     = true;
+      this.tetherTarget = target;
+      this.tetherTimer  = 300; // 5s at 60fps
+      spawnSquareParticles(this.x, this.y, this.owner.def.color, 10, 1, 3, 6);
+    }
+  }
+
+  _updateTether() {
+    const target = this.tetherTarget;
+    if (!target || target.hp <= 0) {
+      this._endTether();
+      return;
+    }
+    this.tetherTimer--;
+    if (this.tetherTimer <= 0) {
+      this._endTether();
+    }
+  }
+
+  _endTether() {
+    this.tethered                = false;
+    this.owner.magentaBeamActive = false;
+    this.owner.magentaBeamCD     = 270; // 4.5s cooldown
+    spawnSquareParticles(
+      this.owner.x + this.owner.size / 2,
+      this.owner.y + this.owner.size / 2,
+      this.owner.def.color, 8, 1, 3, 5
+    );
+  }
+
+  draw() {
+    if (!this.active && !this.tethered) return;
+
+    const ox = this.owner.x + this.owner.size / 2;
+    const oy = this.owner.y + this.owner.size / 2;
+    let   ex, ey;
+
+    if (this.active) {
+      ex = this.x;
+      ey = this.y;
+    } else {
+      ex = this.tetherTarget.x + this.tetherTarget.size / 2;
+      ey = this.tetherTarget.y + this.tetherTarget.size / 2;
+    }
+
+    ctx.save();
+    ctx.strokeStyle  = this.owner.def.color;
+    ctx.lineWidth    = 2;
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(ox, oy);
+    ctx.lineTo(ex, ey);
+    ctx.stroke();
+
+    // Diamond-shaped head (like lime but smaller, not round)
+    const angle = Math.atan2(ey - oy, ex - ox);
+    const headSize = 6; // smaller than lime's 5px arc
+    ctx.fillStyle = this.owner.def.color;
+    ctx.beginPath();
+    // Draw a diamond rotated along the travel direction
+    ctx.save();
+    ctx.translate(ex, ey);
+    ctx.rotate(angle);
+    ctx.moveTo(headSize, 0);      // tip (front)
+    ctx.lineTo(0, headSize * 0.5); // bottom
+    ctx.lineTo(-headSize * 0.7, 0); // back
+    ctx.lineTo(0, -headSize * 0.5); // top
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    ctx.restore();
+  }
+}
+
+
+// ── Emerald's rapid-fire barrage bullet ───────────────────────────────────────
+// Aims at a random point within the enemy's square (spread = enemy square size).
+class EmeraldBullet {
+  // spawnX/spawnY: position along Emerald's perpendicular spread
+  // vx/vy: fixed shared direction (same for all bullets in the barrage)
+  constructor(owner, spawnX, spawnY, vx, vy) {
+    this.owner = owner;
+    this.x     = spawnX;
+    this.y     = spawnY;
+    this.vx    = vx;
+    this.vy    = vy;
+    this.alive = true;
+  }
+
+  update() {
+    this.x += this.vx;
+    this.y += this.vy;
+    if (this.x < arena.x || this.x > arena.x + arena.w ||
+        this.y < arena.y || this.y > arena.y + arena.h) {
+      this.alive = false;
+    }
+    // Green-style particle trail
+    if (this.alive) {
+      const density = 10;
+      for (let i = 0; i < density; i++) {
+        const t = i / density;
+        const p = new Particle(this.x - 3 - this.vx * t, this.y - 3 - this.vy * t, this.owner.def.color, 6);
+        p.vx    = 0;
+        p.vy    = 0;
+        p.decay = 0.8;
+        particles.push(p);
+      }
+    }
+  }
+
+  draw() {
+    if (!this.alive) return;
+    ctx.fillStyle = this.owner.def.color;
+    ctx.fillRect(this.x - 4, this.y - 4, 8, 8);
+  }
+}
+
+
+// ── Ruby's bouncing projectile + laser line ───────────────────────────────────
+// Phase 1 (active): flies in random direction, bounces ONCE off a wall.
+// Flies randomly, hits wall 1 (records point A) → bounces randomly →
+// hits wall 2 (records point B) → spawns a permanent RubyLaser(A,B) → dies.
+class RubyProjectile {
+  constructor(owner) {
+    this.owner  = owner;
+    this.x      = owner.x + owner.size / 2;
+    this.y      = owner.y + owner.size / 2;
+
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 10;
+    this.vx     = Math.cos(angle) * speed;
+    this.vy     = Math.sin(angle) * speed;
+
+    this.alive      = true;
+    this.bounced    = false;  // first wall hit done?
+    this.wallAx     = 0;      // first wall hit point
+    this.wallAy     = 0;
+    this.firstWall  = null;   // which wall was hit first
+  }
+
+  _whichWall(wx, wy) {
+    if (wx <= arena.x)           return 'left';
+    if (wx >= arena.x + arena.w) return 'right';
+    if (wy <= arena.y)           return 'top';
+    return 'bottom';
+  }
+
+  _angleAvoidingWall(wall) {
+    for (let i = 0; i < 30; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const vx = Math.cos(angle), vy = Math.sin(angle);
+      if (wall === 'left'   && vx >  0.15) return angle;
+      if (wall === 'right'  && vx < -0.15) return angle;
+      if (wall === 'top'    && vy >  0.15) return angle;
+      if (wall === 'bottom' && vy < -0.15) return angle;
+    }
+    return Math.random() * Math.PI * 2;
+  }
+
+  update() {
+    if (!this.alive) return;
+
+    this.x += this.vx;
+    this.y += this.vy;
+
+    // Wall collision
+    let wx = this.x, wy = this.y, hitWall = false;
+    if (this.x <= arena.x)           { wx = arena.x;           hitWall = true; }
+    if (this.x >= arena.x + arena.w) { wx = arena.x + arena.w; hitWall = true; }
+    if (this.y <= arena.y)           { wy = arena.y;            hitWall = true; }
+    if (this.y >= arena.y + arena.h) { wy = arena.y + arena.h;  hitWall = true; }
+
+    if (hitWall) {
+      const hitSide = this._whichWall(wx, wy);
+      if (!this.bounced) {
+        // First wall hit — record point A, fire off in new random direction (not back into same wall)
+        this.wallAx    = wx;
+        this.wallAy    = wy;
+        this.bounced   = true;
+        this.firstWall = hitSide;
+        this.x = wx;
+        this.y = wy;
+
+        const newAngle = this._angleAvoidingWall(hitSide);
+        const spd      = Math.hypot(this.vx, this.vy);
+        this.vx = Math.cos(newAngle) * spd;
+        this.vy = Math.sin(newAngle) * spd;
+
+        spawnSquareParticles(wx, wy, this.owner.def.color, 8, 1, 3, 5);
+      } else {
+        // Second wall hit — must be a different wall from the first
+        if (hitSide === this.firstWall) {
+          // Same wall — bounce off it physically and keep going
+          if (hitSide === 'left' || hitSide === 'right') this.vx = -this.vx;
+          else this.vy = -this.vy;
+          this.x = wx;
+          this.y = wy;
+          return;
+        }
+        // Different wall — record point B, spawn permanent laser, die
+        const wallBx = wx;
+        const wallBy = wy;
+        rubyLasers.push(new RubyLaser(this.owner, this.wallAx, this.wallAy, wallBx, wallBy));
+        spawnSquareParticles(wx, wy, this.owner.def.color, 8, 1, 3, 5);
+        this.alive = false;
+        this.owner.rubyProjectileActive = false;
+        this.owner.rubyCD = 240;
+      }
+    }
+  }
+
+  draw() {
+    if (!this.alive) return;
+    ctx.fillStyle = this.owner.def.color;
+    ctx.fillRect(this.x - 4, this.y - 4, 8, 8);
+  }
+}
+
+// ── Ruby's permanent laser line (wall point A → wall point B) ─────────────────
+// Like brown spikes: stays forever, damages enemy on crossing.
+class RubyLaser {
+  constructor(owner, ax, ay, bx, by) {
+    this.owner    = owner;
+    this.ax       = ax;  // first wall hit point
+    this.ay       = ay;
+    this.bx       = bx;  // second wall hit point
+    this.by       = by;
+    this.dmgCD    = 0;   // crossing damage cooldown
+    this._prevEx  = null;
+    this._prevEy  = null;
+  }
+
+  update() {
+    if (this.dmgCD > 0) this.dmgCD--;
+
+    const enemy = squares.find(s => s !== this.owner);
+    if (!enemy) { this._prevEx = null; return; }
+
+    const ex = enemy.x + enemy.size / 2;
+    const ey = enemy.y + enemy.size / 2;
+
+    if (this._prevEx !== null && this.dmgCD <= 0) {
+      if (_rubySegCross(this.ax, this.ay, this.bx, this.by,
+                        this._prevEx, this._prevEy, ex, ey)) {
+        enemy.hp -= 2;
+        enemy.onTakeDamage();
+        SFX.takeDamage();
+        floatingNumbers.push(new FloatingNumber(ex, enemy.y, "2", this.owner.def.color));
+        spawnSquareParticles(ex, ey, this.owner.def.color, 6, 1, 3, 5);
+        triggerHitFreeze();
+        this.dmgCD = 30; // 0.5s cooldown
+      }
+    }
+
+    this._prevEx = ex;
+    this._prevEy = ey;
+  }
+
+  draw() {
+    ctx.save();
+    // Core line only (no glow)
+    ctx.strokeStyle = this.owner.def.color;
+    ctx.lineWidth   = 2;
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(this.ax, this.ay);
+    ctx.lineTo(this.bx, this.by);
+    ctx.stroke();
+    ctx.restore();
+
+    // Dots at each endpoint
+    ctx.save();
+    ctx.fillStyle = this.owner.def.color;
+    ctx.beginPath();
+    ctx.arc(this.ax, this.ay, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(this.bx, this.by, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+// Segment intersection helper (private to Ruby)
+function _rubySegCross(ax, ay, bx, by, cx, cy, dx, dy) {
+  const d1x = bx - ax, d1y = by - ay;
+  const d2x = dx - cx, d2y = dy - cy;
+  const denom = d1x * d2y - d1y * d2x;
+  if (Math.abs(denom) < 1e-9) return false;
+  const t = ((cx - ax) * d2y - (cy - ay) * d2x) / denom;
+  const u = ((cx - ax) * d1y - (cy - ay) * d1x) / denom;
+  return t >= 0 && t <= 1 && u >= 0 && u <= 1;
 }

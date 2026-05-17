@@ -65,9 +65,12 @@ function goToMainMenu() {
   limeProjectiles  = [];
   grayStaticClones = [];
   goldConstructs   = [];
+  goldCoins        = [];
   mistProjectiles  = [];
-  bluePulses   = [];
-  gameOver         = false;
+  magentaBeams     = [];
+  emeraldProjectiles = [];
+  rubyProjectiles    = [];
+  rubyLasers         = [];
   freezeTimer      = 0;
   winDelayTimer    = 0;
   window.winScreenVisible = false;
@@ -117,7 +120,7 @@ function buildRogueSelectGrid() {
     } else {
       const locked = document.createElement("div");
       locked.className = "rogue-locked-label";
-      locked.textContent = "LOCKED";
+      locked.textContent = "SOON";
       card.appendChild(locked);
     }
 
@@ -148,7 +151,12 @@ function resetBattle() {
   limeProjectiles = [];
   grayStaticClones = [];
   goldConstructs   = [];
+  goldCoins        = [];
   mistProjectiles  = [];
+  magentaBeams     = [];
+  emeraldProjectiles = [];
+  rubyProjectiles    = [];
+  rubyLasers         = [];
   bluePulses   = [];
   squares       = [new Square(selectedIds[0], "left"), new Square(selectedIds[1], "right")];
   projectiles   = [];
@@ -259,25 +267,31 @@ function _runBattle() {
     _updateGiantSquares();
     _updatePulses();
     _updateBrownSpikes();
+    _updateRubyLasers();
     _updateLimeProjectiles();
     _updateGrayStaticClones();
     _updateGoldConstructs();
+    _updateGoldCoins();
+    _updateMagentaBeams();
     _updateMistProjectiles();
+    _updateEmeraldProjectiles();
+    _updateRubyProjectiles();
   } else if (freezeTimer > 0) {
     freezeTimer--;
-  }
-
-  if (!gameOver) {
-    updateHUD();
   }
 
   // Draw order
   giantSquares.forEach((g) => g.draw());
   brownSpikes.forEach((sp) => sp.draw());
+  rubyLasers.forEach((rl)  => rl.draw());
   limeProjectiles.forEach((lp) => lp.draw());
   grayStaticClones.forEach((gc) => gc.draw());
   goldConstructs.forEach((gc)   => gc.draw());
+  goldCoins.forEach((coin)      => coin.draw());
+  magentaBeams.forEach((mb)     => mb.draw());
   mistProjectiles.forEach((mp)  => mp.draw());
+  emeraldProjectiles.forEach((ep) => ep.draw());
+  rubyProjectiles.forEach((rp)    => rp.draw());
   squares.forEach((s) => s.draw());
 
   _drawAndCleanClones();
@@ -290,6 +304,11 @@ function _runBattle() {
     bluePulses[i].update();
     bluePulses[i].draw();
     if (bluePulses[i].size > bluePulses[i].maxSize) bluePulses.splice(i, 1);
+  }
+
+  // Update HUD after all damage (including blue pulses) so health bar reaches 0
+  if (!gameOver) {
+    updateHUD();
   }
 
   for (let i = particles.length - 1; i >= 0; i--) {
@@ -354,7 +373,7 @@ function _updateProjectiles() {
           s.hp -= pdmg;
           s.onTakeDamage();
           SFX.takeDamage();
-          floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, pdmg, "#ffffff"));
+          floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, pdmg, p.mainOwner.def.color));
           spawnHitEffect(p.x, p.y, p.mainOwner.def.color);
           // Spawn pulse — pass hit target so pulse skips it (one source of damage per enemy)
           const pulse = new BluePulse(p.mainOwner, p.x, p.y, p.mainOwner.blueHits || 0, [s]);
@@ -367,20 +386,23 @@ function _updateProjectiles() {
         }
 
         const rogueBonus = p.mainOwner._rogueProjectileDamageBonus || 0;
-        const pdmg = p._isMilestone ? p._milestoneDmg : (p.isIndigo || p.isPink ? 1 : 1 + p.owner.bonusDamage + rogueBonus);
+        const pdmg = p._isGoldCoin ? p._goldCoinDamage
+                   : p._isMilestone ? p._milestoneDmg
+                   : p._grayProjDamage != null ? p._grayProjDamage
+                   : (p.isIndigo || p.isPink ? 1 : 1 + p.owner.bonusDamage + rogueBonus);
         s.hp -= pdmg;
         s.onTakeDamage();
         SFX.takeDamage();
-        floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, pdmg, "#ffffff"));
+        floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, pdmg, p.mainOwner.def.color));
 
-        // Scarlet bullet: burst all bleed stacks instantly
+        // Scarlet bullet: detonate stored delayed damage on hit
         if (p.isScarlet) {
-          const burstDmg = s.burstBleed();
+          const burstDmg = s.burstScarletDelayed();
           if (burstDmg > 0) {
             s.hp -= burstDmg;
             SFX.takeDamage();
-            floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y - 16, burstDmg, "#cc1a1a"));
-            spawnSquareParticles(p.x, p.y, "#cc1a1a", 10, 1, 4, 6);
+            floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y - 16, burstDmg, p.mainOwner.def.color));
+            spawnSquareParticles(p.x, p.y, p.mainOwner.def.color, 10, 1, 4, 6);
             triggerHitFreeze();
           }
         }
@@ -397,7 +419,7 @@ function _updateProjectiles() {
           p.mainOwner.pinkSkillTimer       = 480;
         }
 
-        if (p.owner.onHitEnemy && !p.isIndigo && !p.isPink) p.owner.onHitEnemy();
+        if (p.owner.onHitEnemy && !p.isIndigo && !p.isPink && !p._isGoldCoin) p.owner.onHitEnemy();
 
         // Green: count projectile hits (not body hits) for +1 shot upgrade
         if (p.mainOwner.def && p.mainOwner.def.type === "green" && p.mainOwner.greenFlashTimer === 0 && !p._isMilestone) {
@@ -462,8 +484,7 @@ function _updateProjectiles() {
         if (p.mainOwner === c.mainOwner) continue;
         if (p.x > c.x && p.x < c.x + c.size && p.y > c.y && p.y < c.y + c.size) {
           c.hp = 0;
-          const cloneColor = c instanceof Clone ? "#87ceeb" : "#6C5CE7";
-          spawnSquareParticles(c.x + c.size / 2, c.y + c.size / 2, cloneColor, 8, 1, 4, 6);
+          spawnSquareParticles(c.x + c.size / 2, c.y + c.size / 2, c.def.color, 8, 1, 4, 6);
         }
       }
     }
@@ -503,7 +524,7 @@ function _updateGiantSquares() {
         g.hitList.push(s);
         if (s.onTakeDamage) s.onTakeDamage();
         if (!isClone) SFX.takeDamage();
-        floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, damage.toString(), "#ffffff"));
+        floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, damage.toString(), g.owner.def.color));
         spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, g.owner.def.color, 8, 1, 3, 5);
         if (!isClone) triggerHitFreeze();
       }
@@ -633,12 +654,12 @@ function _applyAction(square, action) {
     // Yellow stop shockwave
     if (square._rogueYellowStopShockwave && square._rogueYellowStopShockwave > 0) {
       const sw = new Pulse(square);
-      sw.color     = "#ffec3e";
+      sw.color     = square.def.color;
       sw.thickness = 25;
       sw._yellowSpeedDmg = Math.max(1, Math.floor(square.currentSpeed * 0.5));
       sw._isYellowShockwave = true;
       pulses.push(sw);
-      spawnSquareParticles(square.x + square.size / 2, square.y + square.size / 2, "#ffec3e", 10, 1, 3, 6);
+      spawnSquareParticles(square.x + square.size / 2, square.y + square.size / 2, square.def.color, 10, 1, 3, 6);
     }
   }
 }
@@ -700,11 +721,124 @@ function _updateGoldConstructs() {
   });
 }
 
-// ── Mist projectiles ──────────────────────────────────────────────────────────
+// ── Gold coins (dropped on clash, collected by Gold for speed boost + shot) ───
+function _updateGoldCoins() {
+  for (let i = goldCoins.length - 1; i >= 0; i--) {
+    const coin = goldCoins[i];
+    coin.update();
+
+    // Remove coin if its owner is gone
+    const collector = coin.owner;
+    if (!collector || collector.hp <= 0) { goldCoins.splice(i, 1); continue; }
+
+    const dx   = collector.x + collector.size / 2 - (coin.x + coin.size / 2);
+    const dy   = collector.y + collector.size / 2 - (coin.y + coin.size / 2);
+    const dist = Math.hypot(dx, dy);
+    const pickupRange = (collector.size + coin.size) / 2 + 10;
+
+    if (coin.uncollectableTimer <= 0 && dist < pickupRange) {
+      // Collected! Grant 50% speed boost for 2s and fire a gold projectile (4 dmg)
+      _onGoldCoinCollected(collector, coin);
+      goldCoins.splice(i, 1);
+    }
+  }
+}
+
+function _onGoldCoinCollected(goldSquare, coin) {
+  // Speed boost: 50% of currentSpeed, additive, lasts 2s (120 frames)
+  const speedBoost = goldSquare.currentSpeed * 0.50;
+  goldSquare.speedBoostTimer = Math.max(goldSquare.speedBoostTimer || 0, 120);
+  goldSquare.speedBoostAdd   = Math.max(goldSquare.speedBoostAdd || 0, speedBoost);
+
+  // Fire a gold projectile toward the enemy dealing 4 damage
+  const enemy = squares.find(s => s !== goldSquare);
+  if (enemy) {
+    const goldProj          = new Projectile(goldSquare, enemy);
+    goldProj._isGoldCoin    = true;
+    goldProj._goldCoinDamage = 4;
+    projectiles.push(goldProj);
+  }
+
+  // Sparkle burst at coin position — no floating text, just particles
+  spawnSquareParticles(coin.x + coin.size / 2, coin.y + coin.size / 2, goldSquare.def.color, 12, 1, 4, 7);
+  SFX.heal();
+}
+
+// Called from characters.js gold onHitEnemy to drop 2 coins at the clash point
+function dropGoldCoinsOnClash(goldSquare, enemy) {
+  const cx = (goldSquare.x + goldSquare.size / 2 + enemy.x + enemy.size / 2) / 2;
+  const cy = (goldSquare.y + goldSquare.size / 2 + enemy.y + enemy.size / 2) / 2;
+  for (let i = 0; i < 2; i++) {
+    goldCoins.push(new GoldCoin(cx, cy, goldSquare));
+  }
+  spawnSquareParticles(cx, cy, goldSquare.def.color, 6, 1, 2, 4);
+}
+
+// ── Magenta beams ─────────────────────────────────────────────────────────────
+function _updateMagentaBeams() {
+  for (let i = magentaBeams.length - 1; i >= 0; i--) {
+    const mb = magentaBeams[i];
+    mb.update();
+    if (!mb.active && !mb.tethered) {
+      magentaBeams.splice(i, 1);
+    }
+  }
+}
 function _updateMistProjectiles() {
   for (let i = mistProjectiles.length - 1; i >= 0; i--) {
     const mp = mistProjectiles[i];
     mp.update();
     if (!mp.alive) mistProjectiles.splice(i, 1);
   }
+}
+
+function _updateEmeraldProjectiles() {
+  const EMERALD_DMG = 2;
+  for (let i = emeraldProjectiles.length - 1; i >= 0; i--) {
+    const ep = emeraldProjectiles[i];
+    ep.update();
+
+    if (!ep.alive) {
+      emeraldProjectiles.splice(i, 1);
+      continue;
+    }
+
+    // Collision with enemy squares
+    let hit = false;
+    squares.forEach((s) => {
+      if (hit || s === ep.owner) return;
+      const pHalf = 5;
+      if (ep.x + pHalf > s.x && ep.x - pHalf < s.x + s.size &&
+          ep.y + pHalf > s.y && ep.y - pHalf < s.y + s.size) {
+        s.hp -= EMERALD_DMG;
+        s.onTakeDamage();
+        SFX.takeDamage();
+        floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, EMERALD_DMG, ep.owner.def.color));
+        spawnHitEffect(ep.x, ep.y, ep.owner.def.color);
+        ep.alive = false;
+        hit = true;
+      }
+    });
+
+    if (!ep.alive) {
+      emeraldProjectiles.splice(i, 1);
+    }
+  }
+}
+
+function _updateRubyProjectiles() {
+  for (let i = rubyProjectiles.length - 1; i >= 0; i--) {
+    const rp = rubyProjectiles[i];
+    rp.update();
+    if (!rp.alive) {
+      // Make sure owner state is cleaned up
+      rp.owner.rubyProjectileActive = false;
+      if (rp.owner.rubyCD <= 0) rp.owner.rubyCD = 240;
+      rubyProjectiles.splice(i, 1);
+    }
+  }
+}
+
+function _updateRubyLasers() {
+  rubyLasers.forEach(rl => rl.update());
 }

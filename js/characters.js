@@ -117,7 +117,7 @@ registerBehavior("red", {
       s.hp = Math.min(s.maxHp, s.hp + 20);
       SFX.heal();
       floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y - 14, "+20", "#00ff44"));
-      spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, "#ff3e3e", 12, 1, 3, 6);
+      spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, s.def.color, 12, 1, 3, 6);
     }
 
     // ── Counter-chase: charges on taking damage (2 hits = trigger chase) ──
@@ -275,7 +275,7 @@ registerBehavior("yellow", {
     // Speed pulse: fires on every bounce when speed >= 5
     if (s._rogueYellowSpeedPulse && s.currentSpeed >= 5) {
       const fp = new FollowingPulse(s, null, s.x + s.size / 2, s.y + s.size / 2, 0);
-      fp.color        = "#ffec3e";
+      fp.color        = s.def.color;
       fp.maxSize      = 350;
       fp.growth       = 10;
       fp.delay        = 0;
@@ -290,13 +290,13 @@ registerBehavior("yellow", {
         s._rogueYellowBounceCount = 0;
         // Spawn orange-style shockwave
         const sw = new Pulse(s);
-        sw.color     = "#ffec3e";
+        sw.color     = s.def.color;
         sw.thickness = 25;
         // Orange pulse size (default Pulse: maxSize=2500, growth=12)
         sw._yellowSpeedDmg = Math.max(1, Math.floor(s.currentSpeed * 0.5));
         sw._isYellowShockwave = true;
         pulses.push(sw);
-        spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, "#ffec3e", 10, 1, 3, 6);
+        spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, s.def.color, 10, 1, 3, 6);
       }
     }
   },
@@ -458,7 +458,7 @@ registerBehavior("violet", {
           target.hp -= damage;
           if (target.onTakeDamage) target.onTakeDamage();
           if (!isClone) SFX.takeDamage();
-          floatingNumbers.push(new FloatingNumber(target.x + target.size / 2, target.y, damage.toString(), "#ffffff"));
+          floatingNumbers.push(new FloatingNumber(target.x + target.size / 2, target.y, damage.toString(), s.def.color));
           spawnSquareParticles(target.x + target.size / 2, target.y + target.size / 2, s.def.color, 10, 1, 3, 5);
           if (!isClone) triggerHitFreeze();
         });
@@ -472,7 +472,7 @@ registerBehavior("violet", {
       if (s.violetChargeTimer >= 600) {
         s.violetCharged     = true;
         s.violetChargeTimer = 0;
-        spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, "#8a2be2", 10, 1, 3, 5);
+        spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, s.def.color, 10, 1, 3, 5);
       }
     } else {
       // Charged: lock aim and begin 1s aim window, then recharge
@@ -518,10 +518,10 @@ registerBehavior("violet", {
       ctx.moveTo(sx, sy);
       ctx.lineTo(beamEnd.x, beamEnd.y);
       ctx.setLineDash([]);
-      ctx.strokeStyle = "#8a2be2";
+      ctx.strokeStyle = s.def.color;
       ctx.lineWidth   = 8;
       ctx.shadowBlur  = 15;
-      ctx.shadowColor = "#8a2be2";
+      ctx.shadowColor = s.def.color;
       ctx.stroke();
       ctx.shadowBlur = 0;
     }
@@ -602,7 +602,7 @@ registerBehavior("brown", {
       s.brownChargeTimer++;
       if (s.brownChargeTimer >= 360) {
         s.brownCharged = true;
-        spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, "#c07840", 10, 1, 3, 5);
+        spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, s.def.color, 10, 1, 3, 5);
       }
     }
   },
@@ -681,40 +681,81 @@ registerBehavior("lime", {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SCARLET — On Clash: Apply 3s Bleed (1 dmg/s). Every 3s: Shoot a fast bullet
-//           that instantly triggers all Bleed stacks on hit.
+// SCARLET — Every 7 clashes or wall bounces: Shoot a fast bullet that detonates
+//           all stored delayed damage on hit. On Clash: Stores 4 delayed damage
+//           on the enemy (shown as a health bar preview).
 // ─────────────────────────────────────────────────────────────────────────────
 registerBehavior("scarlet", {
   initState(s) {
-    s.scarletShootTimer = 300;
+    s.scarletCounter = 0; // counts clashes + bounces; shoots at 7
   },
   updateSkill(s) {
-    if (s.scarletShootTimer > 0) {
-      s.scarletShootTimer--;
-      return;
+    // nothing to tick — shooting is event-driven
+  },
+  onHitEnemy(s) {
+    // Count the clash, apply delayed damage, maybe shoot
+    const enemy = squares.find(t => t !== s);
+    if (enemy) enemy.addScarletDelayed(4);
+    s.scarletCounter++;
+    if (s.scarletCounter >= 7) {
+      const target = squares.find(t => t !== s);
+      if (target) {
+        projectiles.push(new Projectile(s, target));
+        spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, s.def.color, 5, 1, 2, 4);
+      }
+      s.scarletCounter = 0;
     }
-    const target = squares.find((t) => t !== s);
-    if (target) {
-      projectiles.push(new Projectile(s, target));
-      spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, "#cc1a1a", 5, 1, 2, 4);
+  },
+  onWallBounce(s) {
+    s.scarletCounter++;
+    if (s.scarletCounter >= 7) {
+      const target = squares.find(t => t !== s);
+      if (target) {
+        projectiles.push(new Projectile(s, target));
+        spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, s.def.color, 5, 1, 2, 4);
+      }
+      s.scarletCounter = 0;
     }
-    s.scarletShootTimer = 300;
   },
 });
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GRAY — Faster movement; every 0.5s leaves a static clone (lasts 1.5s).
-//        Enemy touching the clone is frozen for 2s. Frozen enemy hit = 3 dmg.
+// GRAY — +3 base Clash Damage; shoots a projectile every 4s dealing 3 damage.
 // ─────────────────────────────────────────────────────────────────────────────
 registerBehavior("gray", {
   initState(s) {
-    s.currentSpeed     = GRAY_SPEED;
-    s.grayCloneTimer   = 0;
+    s.bonusDamage      = (s.bonusDamage || 0) + 3;  // permanent +3 clash damage
+    s.grayProjTimer    = 0;
+  },
+  updateSkill(s) {
+    s.grayProjTimer++;
+    if (s.grayProjTimer >= 240) {  // 4s at 60fps
+      s.grayProjTimer = 0;
+      const enemy = squares.find(t => t !== s);
+      if (enemy) {
+        const p = new Projectile(s, enemy);
+        p._grayProjDamage = 3;
+        projectiles.push(p);
+      }
+    }
+  },
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// JADE — Every 0.3s leaves a static clone (lasts 1.5s).
+//        Enemy touching the clone is frozen for 3s. Frozen enemy hit = 10 dmg.
+//        Slightly faster than others.
+// ─────────────────────────────────────────────────────────────────────────────
+registerBehavior("jade", {
+  initState(s) {
+    s.currentSpeed    = GRAY_SPEED;
+    s.grayCloneTimer  = 0;
   },
   updateSkill(s) {
     s.grayCloneTimer++;
-    if (s.grayCloneTimer >= 18) {   // 6 frames = 0.1s at 60fps
+    if (s.grayCloneTimer >= 18) {  // 0.3s at 60fps
       s.grayCloneTimer = 0;
       grayStaticClones.push(new GrayStaticClone(s));
     }
@@ -723,26 +764,23 @@ registerBehavior("gray", {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GOLD — Every 10s drops a static construct (max 2, oldest removed if over cap).
-//        Construct heals Gold +1 HP when the enemy hits it.
+// GOLD — On clashing with an enemy, drops 2 Gold Coins at the clash point in
+//        random directions. Collecting a coin grants +50% speed for 2s and
+//        fires a fast projectile dealing 4 damage.
 // ─────────────────────────────────────────────────────────────────────────────
 registerBehavior("gold", {
   initState(s) {
-    s.goldConstructTimer = 0;
+    s.goldClashCoinCooldown = 0;  // prevents coin spam from rapid re-collisions
   },
   updateSkill(s) {
-    s.goldConstructTimer++;
-    if (s.goldConstructTimer >= 600) {   // 600 frames = 10s
-      s.goldConstructTimer = 0;
-      const myConstructs = goldConstructs.filter(c => c.owner === s);
-      if (myConstructs.length >= 3) {
-        // Remove oldest
-        const oldest = myConstructs[0];
-        const idx    = goldConstructs.indexOf(oldest);
-        if (idx !== -1) goldConstructs.splice(idx, 1);
-      }
-      goldConstructs.push(new GoldConstruct(s));
-    }
+    if (s.goldClashCoinCooldown > 0) s.goldClashCoinCooldown--;
+  },
+  onHitEnemy(s) {
+    if (s.goldClashCoinCooldown > 0) return;
+    const enemy = squares.find(t => t !== s);
+    if (!enemy) return;
+    dropGoldCoinsOnClash(s, enemy);
+    s.goldClashCoinCooldown = 30;  // 0.5s cooldown so one clash = one drop
   },
 });
 
@@ -809,5 +847,263 @@ registerBehavior("sapphire", {
     floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, "+4", "#00ff44"));
     s.size += 8;
     s.sapphirePassiveCD = COOLDOWN_FRAMES;
+  },
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TOPAZ — Every 10s drops a static construct (max 3, oldest removed if over
+//         cap). Constructs heal Topaz +5 HP when the enemy hits them.
+//         Clash Damage permanently increased by +3 on spawn.
+// ─────────────────────────────────────────────────────────────────────────────
+registerBehavior("topaz", {
+  initState(s) {
+    s.topazConstructTimer = 0;
+    s.bonusDamage = (s.bonusDamage || 0) + 3;  // Topaz starts with +3 clash damage
+  },
+  updateSkill(s) {
+    s.topazConstructTimer++;
+    if (s.topazConstructTimer >= 600) {   // 600 frames = 10s
+      s.topazConstructTimer = 0;
+      const myConstructs = goldConstructs.filter(c => c.owner === s);
+      if (myConstructs.length >= 3) {
+        // Remove oldest construct
+        const oldest = myConstructs[0];
+        const idx    = goldConstructs.indexOf(oldest);
+        if (idx !== -1) goldConstructs.splice(idx, 1);
+      }
+      const construct       = new GoldConstruct(s);
+      construct.color       = "#fff200";  // Topaz yellow tint
+      construct._isTopaz    = true;
+      goldConstructs.push(construct);
+    }
+  },
+});
+
+
+// MAGENTA — Every 4.5s, fires a beam toward the enemy. On hit, tethers the
+//           enemy for 4s. While tethered, deals 1 dmg/s to the enemy and
+//           100% of any damage Magenta takes is reflected back to the enemy.
+//           The link CANNOT be interrupted. Clash only pauses the CD (like violet).
+// ─────────────────────────────────────────────────────────────────────────────
+registerBehavior("magenta", {
+  initState(s) {
+    s.magentaBeamCD      = 0;     // frames until next shot (starts ready)
+    s.magentaBeamActive  = false; // true while beam is in flight or tethered
+    s.magentaLastHp      = s.hp;  // tracks hp each frame to compute damage delta
+    s.magentaCDPause     = 0;     // frames to pause CD (clash penalty, like violet)
+    s.magentaLinkDmgTick = 0;     // frames since last link damage tick
+  },
+  updateSkill(s) {
+    s.magentaLastHp = s.hp;  // snapshot before any damage this frame
+
+    // Clash CD pause: stop counting down while paused (don't reset)
+    if (s.magentaCDPause > 0) {
+      s.magentaCDPause--;
+      return;
+    }
+
+    if (s.magentaBeamCD > 0) { s.magentaBeamCD--; return; }
+    if (s.magentaBeamActive) {
+      // Tick link damage: 1 dmg per second (60 frames) while tethered
+      const beam = magentaBeams.find(mb => mb.owner === s && mb.tethered && mb.tetherTarget);
+      if (beam) {
+        s.magentaLinkDmgTick++;
+        if (s.magentaLinkDmgTick >= 60) {
+          s.magentaLinkDmgTick = 0;
+          const target = beam.tetherTarget;
+          target.hp -= 1;
+          target.onTakeDamage();
+          SFX.takeDamage();
+          floatingNumbers.push(new FloatingNumber(
+            target.x + target.size / 2, target.y - 10,
+            "1", s.def.color
+          ));
+          spawnSquareParticles(target.x + target.size / 2, target.y + target.size / 2, s.def.color, 4, 1, 2, 4);
+        }
+      }
+      return;
+    }
+
+    // Fire the beam
+    s.magentaLinkDmgTick = 0;
+    magentaBeams.push(new MagentaBeam(s));
+    s.magentaBeamActive = true;
+  },
+  onHitEnemy(s) {
+    // Clash: pause CD but do NOT cancel the link or reset CD
+    // The link itself cannot be interrupted
+    if (!s.magentaBeamActive) {
+      // Only pause the CD if we're not actively linked
+      s.magentaCDPause = 120; // 2s pause
+    }
+  },
+  onTakeDamage(s) {
+    // Find active tethered beam belonging to this square
+    const beam = magentaBeams.find(mb => mb.owner === s && mb.tethered && mb.tetherTarget);
+    if (!beam) return;
+
+    const damageTaken = s.magentaLastHp - s.hp;
+    if (damageTaken <= 0) return;
+
+    const reflected = damageTaken; // 100% reflection
+    const target    = beam.tetherTarget;
+    target.hp -= reflected;
+    target.onTakeDamage();
+    SFX.takeDamage();
+    floatingNumbers.push(new FloatingNumber(
+      target.x + target.size / 2, target.y - 10,
+      reflected.toString(), s.def.color
+    ));
+    spawnSquareParticles(target.x + target.size / 2, target.y + target.size / 2, s.def.color, 6, 1, 3, 5);
+  },
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EMERALD — Every 6s, locks completely in place for 2s to fire a rapid-fire
+//           barrage of 12 volleys toward the enemy (direction locked at start).
+//           Each volley is a bullet that comes from a different lane spread
+//           across Emerald's square width — all bullets travel in parallel.
+//           Each bullet deals 2 damage.
+// ─────────────────────────────────────────────────────────────────────────────
+registerBehavior("emerald", {
+  initState(s) {
+    s.emeraldCD           = 360; // 6s cooldown before first barrage
+    s.emeraldBarraging    = false;
+    s.emeraldBarrageTimer = 0;   // 120 frames = 2s
+    s.emeraldShotsLeft    = 0;   // volleys remaining
+    s.emeraldShotGap      = 0;
+    // Locked direction (set once when barrage starts)
+    s.emeraldVx           = 0;
+    s.emeraldVy           = 0;
+    // Perpendicular axis for spread
+    s.emeraldPerpX        = 0;
+    s.emeraldPerpY        = 0;
+  },
+  updateSkill(s) {
+    if (s.emeraldBarraging) {
+      s.stopTimer = 2; // lock in place
+
+      s.emeraldBarrageTimer--;
+
+      if (s.emeraldShotGap > 0) {
+        s.emeraldShotGap--;
+      } else if (s.emeraldShotsLeft > 0) {
+        // Random position across Emerald's square width (perpendicular to fire dir)
+        const t = (Math.random() - 0.5); // -0.5 to +0.5
+        const offsetX = t * s.size * s.emeraldPerpX;
+        const offsetY = t * s.size * s.emeraldPerpY;
+        const cx = s.x + s.size / 2;
+        const cy = s.y + s.size / 2;
+        emeraldProjectiles.push(new EmeraldBullet(
+          s,
+          cx + offsetX,
+          cy + offsetY,
+          s.emeraldVx,
+          s.emeraldVy
+        ));
+        s.emeraldShotsLeft--;
+        s.emeraldShotGap = Math.floor(Math.random() * 4); // random gap 0–3 frames
+      }
+
+      if (s.emeraldBarrageTimer <= 0) {
+        s.emeraldBarraging = false;
+        s.emeraldCD        = 360;
+      }
+      return;
+    }
+
+    if (s.emeraldCD > 0) { s.emeraldCD--; return; }
+
+    // Lock the fire direction toward the enemy right now
+    const target = squares.find(t => t !== s);
+    const tx = target ? target.x + target.size / 2 : s.x + 100;
+    const ty = target ? target.y + target.size / 2 : s.y;
+    const dx = tx - (s.x + s.size / 2);
+    const dy = ty - (s.y + s.size / 2);
+    const dist = Math.hypot(dx, dy) || 1;
+    const speed = 15;
+    s.emeraldVx = (dx / dist) * speed;
+    s.emeraldVy = (dy / dist) * speed;
+    // Perpendicular axis (rotate 90°)
+    s.emeraldPerpX = -dy / dist;
+    s.emeraldPerpY =  dx / dist;
+
+    s.emeraldBarraging    = true;
+    s.emeraldBarrageTimer = 120;
+    s.emeraldShotsLeft    = 30;
+    s.emeraldShotGap      = 0;
+  },
+  onHitEnemy(s) {
+    // CD and barrage cannot be interrupted
+  },
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RUBY — Every 4s, shoots a projectile in a random direction. It bounces
+//        exactly once off a wall (new random direction after bounce). A searing
+//        laser line connects Ruby to the bounce point — crossing it deals 2 dmg.
+// ─────────────────────────────────────────────────────────────────────────────
+registerBehavior("ruby", {
+  initState(s) {
+    s.rubyCD              = 240; // 4s before first shot
+    s.rubyProjectileActive = false;
+  },
+  updateSkill(s) {
+    if (s.rubyProjectileActive) return;
+    if (s.rubyCD > 0) { s.rubyCD--; return; }
+
+    rubyProjectiles.push(new RubyProjectile(s));
+    s.rubyProjectileActive = true;
+  },
+  onHitEnemy(s) {
+    // Clash cannot interrupt Ruby's ability or reset CD
+  },
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CRIMSON — On Clash: Apply 4s Bleed to enemy AND heal self +1.
+//           Both the bleed duration and the heal scale up by +1 per 10 HP lost
+//           (i.e. floor((maxHp - currentHp) / 10) bonus stacks).
+// ─────────────────────────────────────────────────────────────────────────────
+// CRIMSON — On Clash: Apply bleed to enemy AND heal self +1 (5s cooldown on heal).
+//           Bleed duration and heal both scale +1 per 10 HP lost.
+// ─────────────────────────────────────────────────────────────────────────────
+registerBehavior("crimson", {
+  initState(s) {
+    s.crimsonHealCD    = 0;   // 5s heal cooldown (300 frames)
+    s.crimsonDebounce  = 0;   // short debounce to avoid multi-trigger per clash
+  },
+  updateSkill(s) {
+    if (s.crimsonHealCD   > 0) s.crimsonHealCD--;
+    if (s.crimsonDebounce > 0) s.crimsonDebounce--;
+  },
+  onHitEnemy(s) {
+    if (s.crimsonDebounce > 0) return;
+    const enemy = squares.find(t => t !== s);
+    if (!enemy) return;
+
+    const hpLost = Math.max(0, s.maxHp - s.hp);
+    const bonus  = Math.floor(hpLost / 10);
+    const bleedS = 4 + bonus;   // bleed seconds
+    const healAmt = 1 + bonus;  // HP to heal
+
+    // Always apply bleed to enemy
+    enemy.applyBleed(bleedS * 60, s.def.color);
+    spawnSquareParticles(enemy.x + enemy.size / 2, enemy.y + enemy.size / 2, s.def.color, 6, 1, 2, 4);
+
+    // Heal only if CD is ready
+    if (s.crimsonHealCD <= 0) {
+      s.hp = Math.min(s.maxHp, s.hp + healAmt);
+      floatingNumbers.push(new FloatingNumber(
+        s.x + s.size / 2, s.y - 10,
+        `+${healAmt}`, "#00ff44"
+      ));
+      s.crimsonHealCD = 300; // 5s
+    }
+
+    s.crimsonDebounce = 20; // ~0.33s debounce
   },
 });

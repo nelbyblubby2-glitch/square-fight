@@ -53,9 +53,10 @@ function getChargeBar(s) {
       };
     case "scarlet":
       return {
-        pct: Math.min(100, (1 - s.scarletShootTimer / 300) * 100),
-        color: s.def.color,
-        ready: s.scarletShootTimer <= 0,
+        segments: 7,
+        filled:   s.scarletCounter || 0,
+        color:    s.def.color,
+        ready:    (s.scarletCounter || 0) >= 7,
       };
     case "indigo":
       return {
@@ -80,6 +81,12 @@ function getChargeBar(s) {
             : 100,
         color: s.def.color,
         ready: s.limeCooldown <= 0 && !s.limeProjectileActive,
+      };
+    case "ruby":
+      return {
+        pct:   s.rubyCD > 0 ? Math.min(100, (1 - s.rubyCD / 240) * 100) : 100,
+        color: s.def.color,
+        ready: s.rubyCD <= 0 && !s.rubyProjectileActive,
       };
     case "green": {
       // Dynamic hit counter segments based on threshold reduction
@@ -115,10 +122,28 @@ function getChargeBar(s) {
         color: s.def.color,
       };
     case "gold":
+      return null;  // Gold has no charge bar — coins drop on clash, no cooldown UI
+    case "magenta":
+      // While beam is active (flying or tethering), show full bar; otherwise show CD fill
+      if (s.magentaBeamActive) return { pct: 100, color: s.def.color, ready: true };
       return {
-        pct: Math.min(100, (s.goldConstructTimer / 600) * 100),
+        pct:   s.magentaBeamCD > 0 ? Math.min(100, (1 - s.magentaBeamCD / 270) * 100) : 100,
         color: s.def.color,
-        ready: s.goldConstructTimer >= 600,
+        ready: s.magentaBeamCD <= 0 && !s.magentaBeamActive,
+      };
+    case "emerald":
+      // During barrage: pulse full bar; during CD: fill toward ready
+      if (s.emeraldBarraging) return { pct: 100, color: s.def.color, ready: true };
+      return {
+        pct:   s.emeraldCD > 0 ? Math.min(100, (1 - s.emeraldCD / 360) * 100) : 100,
+        color: s.def.color,
+        ready: s.emeraldCD <= 0 && !s.emeraldBarraging,
+      };
+    case "topaz":
+      return {
+        pct: Math.min(100, (s.topazConstructTimer / 600) * 100),
+        color: s.def.color,
+        ready: s.topazConstructTimer >= 600,
       };
     case "mist":
       // Segmented: 3 segments showing hit counter toward teleport
@@ -135,6 +160,18 @@ function getChargeBar(s) {
             : 100,
         color: s.def.color,
         ready: !(s.sapphirePassiveCD > 0),
+      };
+    case "crimson":
+      return {
+        pct:   Math.min(100, (1 - (s.crimsonHealCD || 0) / 300) * 100),
+        color: s.def.color,
+        ready: !(s.crimsonHealCD > 0),
+      };
+    case "gray":
+      return {
+        pct:   Math.min(100, (s.grayProjTimer / 240) * 100),
+        color: s.def.color,
+        ready: s.grayProjTimer >= 240,
       };
     default:
       return null;
@@ -278,7 +315,7 @@ function updateHUD() {
     if (bleedFill) {
       bleedFill.style.width = `${(currentHp / maxHp) * 100}%`;
       bleedFill.style.backgroundColor = s.def.color;
-      bleedFill.style.opacity = s.bleedTimer > 0 ? "0.45" : "0";
+      bleedFill.style.opacity = (s.bleedTimer > 0 || s.scarletDelayed > 0) ? "0.45" : "0";
     }
 
     cdFill.style.width = `${(s.actionCooldown / ACTION_COOLDOWN) * 100}%`;

@@ -838,10 +838,6 @@ canvas {
   flex-shrink: 0;
 }
 
-.rogue-locked .rogue-char-preview {
-  filter: grayscale(1);
-}
-
 .rogue-char-name {
   font-size: 14px;
   font-weight: 800;
