@@ -116,7 +116,7 @@ class Pulse {
         if (!inArena) return;
 
         const isClone = target instanceof Clone;
-        const damage  = isClone ? 1 : (this._isYellowShockwave ? this._yellowSpeedDmg : 2);
+        const damage  = isClone ? 1 : (this._fixedDamage !== undefined ? this._fixedDamage : (this._isYellowShockwave ? this._yellowSpeedDmg : 2));
         target.hp -= damage;
         this.hitList.push(target);
         if (target.onTakeDamage) target.onTakeDamage();

@@ -43,6 +43,14 @@ const rogueDefs = {
     startPower: 1,
     passiveDesc: "Shoot projectiles that explode on impact every 5s. Increase explosion size and +2 damage increase per hit.",
   },
+  5: {
+    name: "Orange",
+    color: "#ff9f00",
+    type: "orange",
+    startHP: 100,
+    startPower: 1,
+    passiveDesc: "Hitting walls releases an expanding pulse that deals 1 damage.",
+  },
 };
 
 // Enemy progression per floor
@@ -242,12 +250,26 @@ function _applyRogueStats(enemyDef) {
     player.blueHits = rogueState.bluePassiveDmgBonus || 0;
     // No longer use bonusDamage for blue
     player.bonusDamage = 0;
+    // New blue upgrades
+    player._rogueBlueBlastRadius       = rogueState.blueBlastRadius || false;
+    player._rogueBlueCondenser         = rogueState.blueCondenser || 0;
+    player._rogueBlueSplinterThreshold = rogueState.blueSplinterThreshold || 0;
+    player._rogueBlueSplinterCount     = 0;
+    player._rogueBluePressureRelease   = rogueState.bluePressureRelease || false;
+    player._rogueBluePressureUsed      = false;
+    player._rogueBlueSingularity       = rogueState.blueSingularity || false;
   }
 
   // Patch Yellow stop shockwave
   if (rogueState.charId === 4) {
     player._rogueYellowStopShockwave = rogueState.yellowStopShockwave || 0;
     player._rogueYellowStopShockwaveTriggered = false;
+  }
+
+  // Patch Orange's rogue upgrades
+  if (rogueState.charId === 5) {
+    player._rogueOrangeRadiationInterval = rogueState.orangeRadiationInterval || 0; // 0=off, 60=1s, 30=0.5s
+    player._rogueOrangeRadiationTimer    = 0;
   }
 }
 
@@ -697,6 +719,104 @@ const charUpgradePools = {
       limit: 1,
       apply(state) {
         state.blueBounce = true;
+      },
+    },
+    {
+      id: "blue_blast_radius",
+      name: "Blast Radius",
+      desc: "Increase the base size of your explosions by 25%.",
+      icon: "7",
+      limit: 1,
+      apply(state) {
+        state.blueBlastRadius = true;
+      },
+    },
+    {
+      id: "blue_condenser",
+      name: "Condenser",
+      desc: "Reduce your projectile shooting cooldown by 0.5 seconds.",
+      icon: "8",
+      limit: 4,
+      apply(state) {
+        state.blueCondenser = (state.blueCondenser || 0) + 1;
+      },
+    },
+    {
+      id: "blue_splinter_burst",
+      name: "Splinter Burst",
+      desc: "Every 2nd shot/every shot triggers 8 projectiles moving outward in a cross shape, each dealing 2 damage.",
+      icon: "9",
+      limit: 2,
+      apply(state) {
+        state.blueSplinterPicks = (state.blueSplinterPicks || 0) + 1;
+        // 1st pick = every 2nd shot, 2nd pick = every shot
+        state.blueSplinterThreshold = state.blueSplinterPicks === 1 ? 2 : 1;
+      },
+    },
+    {
+      id: "blue_pressure_release",
+      name: "Pressure Release",
+      desc: "When dropped below 25 HP, trigger a massive screen-wide explosion that pushes the enemy away and deals damage equal to your current explosion damage stack. Triggers once per floor.",
+      icon: "10",
+      limit: 1,
+      apply(state) {
+        state.bluePressureRelease = true;
+      },
+    },
+    {
+      id: "blue_singularity",
+      name: "Singularity",
+      desc: "When your accumulated explosion damage bonus reaches +10 or higher, your projectiles become homing.",
+      icon: "11",
+      limit: 1,
+      apply(state) {
+        state.blueSingularity = true;
+      },
+    },
+  ],
+
+  // ── ORANGE ──
+  5: [
+    {
+      id: "orange_hp",
+      name: "Vitality",
+      desc: "Increase your maximum HP by 25.",
+      icon: "1",
+      limit: null,
+      apply(state) {
+        state.maxHp += 25;
+      },
+    },
+    {
+      id: "orange_mass",
+      name: "Mass",
+      desc: "Increase your size by 20%.",
+      icon: "2",
+      limit: null,
+      apply(state) {
+        state.sizeBonus = (state.sizeBonus || 0) + 0.2;
+      },
+    },
+    {
+      id: "orange_speed",
+      name: "Speed",
+      desc: "Increase speed by 0.5.",
+      icon: "3",
+      limit: null,
+      apply(state) {
+        state.speedBonus = (state.speedBonus || 0) + 0.5;
+      },
+    },
+    {
+      id: "orange_radiation",
+      name: "Radiation",
+      desc: "Constantly release a small pulse every 1s/0.5s that follows the enemy and deals 1 damage (same as your wall pulse).",
+      icon: "4",
+      limit: 2,
+      apply(state) {
+        state.orangeRadiationPicks = (state.orangeRadiationPicks || 0) + 1;
+        // 1st pick = 60 frames (1s), 2nd pick = 30 frames (0.5s)
+        state.orangeRadiationInterval = state.orangeRadiationPicks === 1 ? 60 : 30;
       },
     },
   ],

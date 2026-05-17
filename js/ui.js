@@ -39,12 +39,14 @@ function getChargeBar(s) {
         color: "#8a2be2",
         ready: s.violetCharged,
       };
-    case "blue":
+    case "blue": {
+      const blueMaxCD = Math.max(60, 300 - (s._rogueBlueCondenser || 0) * 30);
       return {
-        pct: Math.min(100, (s.blueShootCD / 300) * 100),
+        pct: Math.min(100, (s.blueShootCD / blueMaxCD) * 100),
         color: s.def.color,
-        ready: s.blueShootCD >= 300,
+        ready: s.blueShootCD >= blueMaxCD,
       };
+    }
     case "cyan":
       return {
         pct: Math.min(100, (1 - s.cyanSkillTimer / 390) * 100),
@@ -198,10 +200,10 @@ function getChargeBar2(s) {
       };
     }
     case "blue": {
-      if (!s._rogueBlueEmpoweredShot) return null;
+      if (!s._rogueBlueSplinterThreshold) return null;
       return {
-        segments: 2,
-        filled: Math.min(2, s._blueShootCount || 0), // Displays 0, 1, or 2 (Full)
+        segments: s._rogueBlueSplinterThreshold,
+        filled: Math.min(s._rogueBlueSplinterThreshold, s._rogueBlueSplinterCount || 0),
         color: s.def.color,
       };
     }
@@ -244,6 +246,14 @@ function getChargeBar3(s) {
       return {
         segments: mThreshold,
         filled: mFilled,
+        color: s.def.color,
+      };
+    }
+    case "blue": {
+      if (!s._rogueBlueEmpoweredShot) return null;
+      return {
+        segments: 2,
+        filled: Math.min(2, s._blueShootCount || 0),
         color: s.def.color,
       };
     }
@@ -522,7 +532,7 @@ function updateHUD() {
           charge3Wrap.style.flexDirection = "column";
           charge3Wrap.style.justifyContent = "center";
           charge3Wrap.style.alignItems = "center";
-          charge3Wrap.style.gap = "2px";
+          charge3Wrap.style.gap = "4px";
           charge3Wrap.style.background = "none";
           charge3Wrap.style.borderRadius = "5px";
           charge3Wrap.style.padding = "2px";

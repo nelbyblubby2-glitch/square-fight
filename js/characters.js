@@ -201,8 +201,25 @@ registerBehavior("blue", {
     s.blueBurstLeft  = 0;  // shots remaining in current burst
     s.blueShotGap    = 0;  // gap timer between burst shots
     s._blueShootCount = 0; // Tracks shot segments: 0 -> 1 -> 2 (Full UI) -> 3 (Reset)
+    s._rogueBlueSplinterCount = 0; // tracks shots fired for splinter burst
   },
   updateSkill(s) {
+    // ── Pressure Release: triggers once per floor when HP drops below 25 ──
+    if (s._rogueBluePressureRelease && !s._rogueBluePressureUsed && s.hp > 0 && s.hp < 25) {
+      s._rogueBluePressureUsed = true;
+      const cx = s.x + s.size / 2;
+      const cy = s.y + s.size / 2;
+      // Screen-wide pulse dealing damage = blueHits stack
+      const dmg = Math.max(1, s.blueHits || 0);
+      const sw = new BluePulse(s, cx, cy, 0, [s]);
+      sw.damage  = dmg;
+      sw.maxSize = Math.max(arena.w, arena.h) * 3;
+      sw.growth  = 30;
+      bluePulses.push(sw);
+      spawnSquareParticles(cx, cy, s.def.color, 20, 2, 4, 8);
+      SFX.takeDamage();
+    }
+
     // Burst in progress
     if (s.blueBurstLeft > 0) {
       if (s.blueShotGap > 0) {
@@ -210,6 +227,9 @@ registerBehavior("blue", {
       } else {
         const target = squares.find(t => t !== s);
         if (target) {
+          // ── Singularity: homing when blueHits >= 10 ──
+          const isHoming = s._rogueBlueSingularity && (s.blueHits || 0) >= 10;
+
           const proj = new Projectile(s, target);
           proj._isBlue = true;
           // Speed: 60% slower if bounce upgrade, otherwise 40% slower than normal projectile speed
@@ -221,32 +241,66 @@ registerBehavior("blue", {
           proj.vx = (dx / dist) * spd;
           proj.vy = (dy / dist) * spd;
           if (bouncing) {
-            proj.isGreenBounce = true; // reuse green bounce wall logic (skips OOB removal)
-            proj.bounceTimer = 300;    // live for ~10s then expire
+            proj.isGreenBounce = true;
+            proj.bounceTimer = 300;
             proj._rogueBlueBounce = true;
+          }
+          if (isHoming) {
+            proj._blueHoming       = true;
+            proj._blueHomingTarget = target;
+            proj._blueHomingSpeed  = spd;
           }
 
           if (s._rogueBlueEmpoweredShot) {
             s._blueShootCount = (s._blueShootCount || 0) + 1;
-            
             if (s._blueShootCount >= 3) {
-              proj._isBluEmpowered = true; // 3rd shot triggers empowered state
-              s._blueShootCount = 0;       // Resets to zero immediately
+              proj._isBluEmpowered = true;
+              s._blueShootCount = 0;
             }
           }
-          
+
           projectiles.push(proj);
+
+          // ── Splinter Burst: every Nth shot fires 8 cross-shaped projectiles ──
+          if (s._rogueBlueSplinterThreshold > 0) {
+            s._rogueBlueSplinterCount = (s._rogueBlueSplinterCount || 0) + 1;
+            if (s._rogueBlueSplinterCount >= s._rogueBlueSplinterThreshold) {
+              s._rogueBlueSplinterCount = 0;
+              const cx = s.x + s.size / 2;
+              const cy = s.y + s.size / 2;
+              const splinterSpd = PROJECTILE_SPEED * 1.2;
+              // 8 directions: cardinal + diagonal
+              const dirs = [
+                [1, 0], [-1, 0], [0, 1], [0, -1],
+                [1, 1], [1, -1], [-1, 1], [-1, -1],
+              ];
+              dirs.forEach(([dvx, dvy]) => {
+                const len = Math.hypot(dvx, dvy);
+                const sp = new Projectile(s, null);
+                sp.x  = cx - 4;
+                sp.y  = cy - 4;
+                sp.vx = (dvx / len) * splinterSpd;
+                sp.vy = (dvy / len) * splinterSpd;
+                sp._isSplinter     = true;
+                sp._splinterDamage = 2;
+                projectiles.push(sp);
+              });
+              spawnSquareParticles(cx, cy, s.def.color, 12, 1, 3, 6);
+            }
+          }
         }
         s.blueBurstLeft--;
-        s.blueShotGap = 35; // bigger gap between burst shots for Blue
+        s.blueShotGap = 35;
       }
       return;
     }
 
+    // ── Condenser: each pick reduces the 300-frame (5s) cooldown by 30 frames (0.5s) ──
+    const blueCD = Math.max(60, 300 - (s._rogueBlueCondenser || 0) * 30);
     s.blueShootCD++;
-    if (s.blueShootCD >= 300) {
+    if (s.blueShootCD >= blueCD) {
       s.blueShootCD   = 0;
-      s.blueBurstLeft = s.projectileCount; // fire projectileCount shots in burst
+      s.blueBurstLeft = s.projectileCount;
       s.blueShotGap   = 0;
     }
   },
@@ -533,8 +587,31 @@ registerBehavior("violet", {
 // ORANGE — Each wall bounce emits an expanding damage pulse
 // ─────────────────────────────────────────────────────────────────────────────
 registerBehavior("orange", {
+  initState(s) {
+    s._rogueOrangeRadiationTimer    = 0;
+    s._rogueOrangeRadiationInterval = 0;
+  },
   onWallBounce(s) {
-    pulses.push(new Pulse(s));
+    const p = new Pulse(s);
+    if (rogueState) p._fixedDamage = 1;
+    pulses.push(p);
+  },
+  updateSkill(s) {
+    // ── Radiation: periodic following pulse toward enemy ──
+    if (s._rogueOrangeRadiationInterval > 0) {
+      s._rogueOrangeRadiationTimer = (s._rogueOrangeRadiationTimer || 0) + 1;
+      if (s._rogueOrangeRadiationTimer >= s._rogueOrangeRadiationInterval) {
+        s._rogueOrangeRadiationTimer = 0;
+        const target = squares.find(t => t !== s);
+        if (target) {
+          const fp = new FollowingPulse(s, target, s.x + s.size / 2, s.y + s.size / 2, 0);
+          fp.delay  = 0;
+          fp.active = true;
+          fp._fixedDamage = 1; // same as orange wall pulse (1 dmg)
+          followingPulses.push(fp);
+        }
+      }
+    }
   },
 });
 

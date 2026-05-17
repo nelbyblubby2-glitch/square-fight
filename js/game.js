@@ -84,7 +84,7 @@ function goToSquareFight() {
 }
 
 // IDs that are unlocked for roguelike. Add more IDs here as you unlock them.
-const ROGUE_UNLOCKED_IDS = new Set([1, 2, 3, 4]);
+const ROGUE_UNLOCKED_IDS = new Set([1, 2, 3, 4, 5]);
 
 function buildRogueSelectGrid() {
   const grid = document.getElementById("rogue-grid");
@@ -348,6 +348,7 @@ function _updateProjectiles() {
       if (p._isBlue) {
         const pulse = new BluePulse(p.mainOwner, p.x, p.y, p.mainOwner.blueHits || 0, []);
         if (p._isBluEmpowered) pulse.applyEmpowered();
+        if (p.mainOwner._rogueBlueBlastRadius) pulse.maxSize *= 1.25;
         bluePulses.push(pulse);
       }
       projectiles.splice(pi, 1);
@@ -378,9 +379,22 @@ function _updateProjectiles() {
           // Spawn pulse — pass hit target so pulse skips it (one source of damage per enemy)
           const pulse = new BluePulse(p.mainOwner, p.x, p.y, p.mainOwner.blueHits || 0, [s]);
           if (p._isBluEmpowered) pulse.applyEmpowered();
+          // Blast Radius upgrade: 25% larger explosion
+          if (p.mainOwner._rogueBlueBlastRadius) pulse.maxSize *= 1.25;
           bluePulses.push(pulse);
           // Projectile hits increment blueHits by 2 (damage bonus increase)
           p.mainOwner.blueHits = (p.mainOwner.blueHits || 0) + 2;
+          hit = true;
+          return;
+        }
+
+        // Splinter burst projectile
+        if (p._isSplinter) {
+          s.hp -= p._splinterDamage;
+          s.onTakeDamage();
+          SFX.takeDamage();
+          floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, p._splinterDamage, p.mainOwner.def.color));
+          spawnHitEffect(p.x, p.y, p.mainOwner.def.color);
           hit = true;
           return;
         }

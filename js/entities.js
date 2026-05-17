@@ -123,9 +123,31 @@ class Projectile {
         if (this.y >= arena.y + arena.h) { this.vy = -Math.abs(this.vy); }
       }
     }
+
+    // Singularity: blue homing projectile steers toward target each frame
+    if (this._blueHoming && this._blueHomingTarget) {
+      const t   = this._blueHomingTarget;
+      const tx  = t.x + t.size / 2 - this.x;
+      const ty  = t.y + t.size / 2 - this.y;
+      const td  = Math.hypot(tx, ty) || 1;
+      const spd = this._blueHomingSpeed || PROJECTILE_SPEED * 0.8;
+      this.vx += (tx / td) * spd * 0.08;
+      this.vy += (ty / td) * spd * 0.08;
+      const curSpd = Math.hypot(this.vx, this.vy) || 1;
+      this.vx = (this.vx / curSpd) * spd;
+      this.vy = (this.vy / curSpd) * spd;
+    }
   }
 
   draw() {
+    if (this._isSplinter) {
+      // Small diamond-shaped splinter projectile
+      ctx.fillStyle = this.mainOwner.def.color;
+      ctx.globalAlpha = 0.9;
+      ctx.fillRect(this.x - 4, this.y - 4, 8, 8);
+      ctx.globalAlpha = 1.0;
+      return;
+    }
     if (this._isMilestone || this._isSapphire) {
       // Medium-sized projectile — draw as a larger square with a glow
       ctx.fillStyle = this.mainOwner.def.color;
@@ -1095,6 +1117,30 @@ class RubyProjectile {
     if (!this.alive) return;
     ctx.fillStyle = this.owner.def.color;
     ctx.fillRect(this.x - 4, this.y - 4, 8, 8);
+
+    // After first bounce: draw a dashed line back to the wall hit point
+    if (this.bounced && !rogueState) {
+      ctx.save();
+      ctx.strokeStyle = this.owner.def.color;
+      ctx.lineWidth   = 1.5;
+      ctx.globalAlpha = 0.45;
+      ctx.setLineDash([5, 4]);
+      ctx.beginPath();
+      ctx.moveTo(this.x, this.y);
+      ctx.lineTo(this.wallAx, this.wallAy);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+
+      // Small dot at the bounce point
+      ctx.save();
+      ctx.fillStyle   = this.owner.def.color;
+      ctx.globalAlpha = 0.7;
+      ctx.beginPath();
+      ctx.arc(this.wallAx, this.wallAy, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
   }
 }
 
@@ -1121,9 +1167,20 @@ class RubyLaser {
     const ex = enemy.x + enemy.size / 2;
     const ey = enemy.y + enemy.size / 2;
 
-    if (this._prevEx !== null && this.dmgCD <= 0) {
-      if (_rubySegCross(this.ax, this.ay, this.bx, this.by,
-                        this._prevEx, this._prevEy, ex, ey)) {
+    // Shrink the touch hitbox slightly (6px inset on each side)
+    const inset = 6;
+    const overlapping = _rubySegIntersectsRect(
+      this.ax, this.ay, this.bx, this.by,
+      enemy.x + inset, enemy.y + inset, enemy.size - inset * 2, enemy.size - inset * 2
+    );
+
+    if (this.dmgCD <= 0) {
+      const crossed = this._prevEx !== null && _rubySegCross(
+        this.ax, this.ay, this.bx, this.by,
+        this._prevEx, this._prevEy, ex, ey
+      );
+      // Deal damage on crossing, or on first contact (not already touching)
+      if (crossed || (overlapping && !this._wasOverlapping)) {
         enemy.hp -= 2;
         enemy.onTakeDamage();
         SFX.takeDamage();
@@ -1134,6 +1191,7 @@ class RubyLaser {
       }
     }
 
+    this._wasOverlapping = overlapping;
     this._prevEx = ex;
     this._prevEy = ey;
   }
@@ -1161,6 +1219,22 @@ class RubyLaser {
     ctx.fill();
     ctx.restore();
   }
+}
+
+// Returns true if segment AB intersects or is inside rectangle (rx,ry,rw,rh)
+function _rubySegIntersectsRect(ax, ay, bx, by, rx, ry, rw, rh) {
+  // Check if either endpoint is inside the rect
+  const inside = (px, py) => px >= rx && px <= rx + rw && py >= ry && py <= ry + rh;
+  if (inside(ax, ay) || inside(bx, by)) return true;
+
+  // Check segment against all 4 edges of the rect
+  const edges = [
+    [rx,      ry,      rx + rw, ry     ],  // top
+    [rx,      ry + rh, rx + rw, ry + rh],  // bottom
+    [rx,      ry,      rx,      ry + rh],  // left
+    [rx + rw, ry,      rx + rw, ry + rh],  // right
+  ];
+  return edges.some(([cx, cy, dx, dy]) => _rubySegCross(ax, ay, bx, by, cx, cy, dx, dy));
 }
 
 // Segment intersection helper (private to Ruby)
