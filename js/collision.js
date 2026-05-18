@@ -19,31 +19,49 @@ function resolveCollision(s1, s2) {
   const ny   = dy / dist;
   s1.x += nx * push;  s1.y += ny * push;
   s2.x -= nx * push;  s2.y -= ny * push;
-  [s1.vx, s2.vx] = [s2.vx, s1.vx];
-  [s1.vy, s2.vy] = [s2.vy, s1.vy];
+  // Swap directions (each square takes the other's direction) but keeps its own speed.
+  const s1len = Math.hypot(s1.vx, s1.vy) || 1;
+  const s2len = Math.hypot(s2.vx, s2.vy) || 1;
+  const s1dx = s1.vx / s1len, s1dy = s1.vy / s1len;
+  const s2dx = s2.vx / s2len, s2dy = s2.vy / s2len;
+  s1.vx = s2dx * s1.currentSpeed;
+  s1.vy = s2dy * s1.currentSpeed;
+  s2.vx = s1dx * s2.currentSpeed;
+  s2.vy = s1dy * s2.currentSpeed;
 
-  // Brown knockback: if charged, blast enemy at fixed high speed. It decays per wall bounce.
-  // If enemy hits Brown at high knockback speed, reset enemy speed to base; Brown is unaffected.
+  // Small independent random angle nudge on each square to break up repetitive head-on bounces.
+  const maxAngle = Math.PI / 18; // ±10 degrees
+  const rotateV = (s, angle) => {
+    const cos = Math.cos(angle), sin = Math.sin(angle);
+    const rvx = s.vx * cos - s.vy * sin;
+    const rvy = s.vx * sin + s.vy * cos;
+    s.vx = rvx; s.vy = rvy;
+    s.normalizeVelocity();
+  };
+  rotateV(s1, (Math.random() - 0.5) * 2 * maxAngle);
+  rotateV(s2, (Math.random() - 0.5) * 2 * maxAngle);
+
+  // Brown knockback: if charged, blast enemy away using the knockback system.
+  // Enemy re-hitting Brown while still in knockback gets knockback cancelled and Brown is unaffected.
   const brownApply = (brown, enemy) => {
-    if (enemy.brownKnockbackDecaying && enemy.currentSpeed > BASE_SPEED) {
-      // Enemy bounced off Brown while still flying fast — reset enemy to base, Brown unaffected
-      enemy.currentSpeed = BASE_SPEED;
-      enemy.brownKnockbackDecaying = false;
-      enemy.normalizeVelocity();
-      // Restore Brown's velocity (un-swap)
-      [brown.vx, enemy.vx] = [enemy.vx, brown.vx];
-      [brown.vy, enemy.vy] = [enemy.vy, brown.vy];
-      brown.normalizeVelocity();
-      return;
-    }
     if (brown.brownCharged) {
-      enemy.currentSpeed       = brown.brownKnockbackVal;
-      enemy.brownKnockbackDecaying = true;
-      enemy.normalizeVelocity();
+      const srcX = brown.x + brown.size / 2;
+      const srcY = brown.y + brown.size / 2;
+      enemy.applyKnockbackFrom(srcX, srcY, brown.brownKnockbackVal);
     }
   };
   if (s1.def.type === "brown") brownApply(s1, s2);
   if (s2.def.type === "brown") brownApply(s2, s1);
+
+  // Knockback dampens by 50% on each enemy hit (does not cancel — square keeps moving)
+  if (Math.hypot(s1.knockbackVx, s1.knockbackVy) > 0.3) {
+    s1.knockbackVx *= 0.5;
+    s1.knockbackVy *= 0.5;
+  }
+  if (Math.hypot(s2.knockbackVx, s2.knockbackVy) > 0.3) {
+    s2.knockbackVx *= 0.5;
+    s2.knockbackVy *= 0.5;
+  }
 
   if (s1.hitImmunityTimer > 0 || s2.hitImmunityTimer > 0) return;
 
@@ -65,20 +83,22 @@ function resolveCollision(s1, s2) {
     s2._rogueBounceEmpowered = false;
   }
   const d2 = s1.getCollisionDamage();
-  // Frozen bonus: hitting a Gray-frozen enemy deals 10 dmg and breaks the freeze
-  let actual_d1 = s1.grayFreezeTimer > 0 ? 10 : d1 + empowerBonus1;
-  let actual_d2 = s2.grayFreezeTimer > 0 ? 10 : d2 + empowerBonus2;
-  if (s1.grayFreezeTimer > 0) s1.grayFreezeTimer = 0;
-  if (s2.grayFreezeTimer > 0) s2.grayFreezeTimer = 0;
+  // Jade gets +6 bonus dmg when hitting a jadebound enemy
+  // actual_d2 = damage s1 deals to s2, actual_d1 = damage s2 deals to s1
+  let actual_d2 = d2 + empowerBonus2 + (s2.jadeboundTimer > 0 && s1.def.type === "jade" ? 6 : 0);
+  let actual_d1 = d1 + empowerBonus1 + (s1.jadeboundTimer > 0 && s2.def.type === "jade" ? 6 : 0);
+  if (s1.jadeboundTimer > 0) s1.jadeboundTimer = 0;
+  if (s2.jadeboundTimer > 0) s2.jadeboundTimer = 0;
   // Gold body deals 2 dmg on direct collision
   if (s2.def.type === "gold") actual_d1 = Math.max(actual_d1, 2);
   if (s1.def.type === "gold") actual_d2 = Math.max(actual_d2, 2);
-  s1.hp -= actual_d1;  s2.hp -= actual_d2;
+  const shown_d1 = s1.absorbDamage(actual_d1);
+  const shown_d2 = s2.absorbDamage(actual_d2);
   s1.onTakeDamage();  s2.onTakeDamage();
   s1.onHitEnemy();    s2.onHitEnemy();
   SFX.takeDamage();
-  floatingNumbers.push(new FloatingNumber(s1.x + s1.size / 2, s1.y, actual_d1, s2.def.color));
-  floatingNumbers.push(new FloatingNumber(s2.x + s2.size / 2, s2.y, actual_d2, s1.def.color));
+  floatingNumbers.push(new FloatingNumber(s1.x + s1.size / 2, s1.y, shown_d1, s2.def.color));
+  floatingNumbers.push(new FloatingNumber(s2.x + s2.size / 2, s2.y, shown_d2, s1.def.color));
   spawnHitEffect(hitX, hitY, "#ffffff");
 
   s1.hitImmunityTimer = HIT_IMMUNITY;
@@ -123,13 +143,15 @@ function resolveCompanionCollision(c, s) {
       c.damage++;
       c.speedBoostTimer = 120;
       c.canDamage = true;
-      spawnSquareParticles(c.x + c.size / 2, c.y + c.size / 2, c.def.color, 5, 1, 3, 5);
+      spawnSquareParticles(c.x + c.size / 2, c.y + c.size / 2, c.def ? c.def.color : "#ffffff", 5, 1, 3, 5);
     } else if (c.canDamage) {
-      s.hp -= c.damage;
+      const actualCompDmg = (s.absorbDamage) ? s.absorbDamage(c.damage) : (s.hp -= c.damage, c.damage);
       s.onTakeDamage();
-      SFX.takeDamage();
-      floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, c.damage, c.owner ? c.owner.def.color : c.def.color));
-      spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, c.def.color, 5, 1, 3, 5);
+      if (actualCompDmg > 0) {
+        SFX.takeDamage();
+        floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, actualCompDmg, c.owner ? c.owner.def.color : (c.def ? c.def.color : "#ffffff")));
+      }
+      spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, c.def ? c.def.color : "#ffffff", 5, 1, 3, 5);
       triggerHitFreeze();
       c.canDamage = false;
     }
@@ -148,7 +170,7 @@ function resolveCompanionCollision(c, s) {
       if (cDist >= (c.size + clone.size) / 2) continue;
 
       clone.hp = 0;
-      spawnSquareParticles(clone.x + clone.size / 2, clone.y + clone.size / 2, clone.def.color, 8, 1, 4, 6);
+      spawnSquareParticles(clone.x + clone.size / 2, clone.y + clone.size / 2, clone.def ? clone.def.color : "#ffffff", 8, 1, 4, 6);
 
       const cnx  = cdx / (cDist || 1);
       const cny  = cdy / (cDist || 1);
@@ -170,12 +192,14 @@ function resolveCloneCollision(c, s) {
   if (dist >= minDist) return;
 
   const dmg = c.damage || 1;
-  s.hp -= dmg;
+  const actualCloneDmg = (s.absorbDamage) ? s.absorbDamage(dmg) : (s.hp -= dmg, dmg);
   c.hp  = 0;
   if (s.onTakeDamage) s.onTakeDamage();
-  SFX.takeDamage();
-  floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, dmg, c.def ? c.def.color : "#ffffff"));
-  spawnSquareParticles((c.x + s.x) / 2, (c.y + s.y) / 2, c.def.color, 8, 1, 3, 5);
+  if (actualCloneDmg > 0) {
+    SFX.takeDamage();
+    floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, actualCloneDmg, c.def ? c.def.color : "#ffffff"));
+  }
+  spawnSquareParticles((c.x + s.x) / 2, (c.y + s.y) / 2, c.def ? c.def.color : "#ffffff", 8, 1, 3, 5);
 }
 
 // ── Gold construct vs Square ──────────────────────────────────────────────────

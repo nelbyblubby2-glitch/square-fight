@@ -117,12 +117,14 @@ class Pulse {
 
         const isClone = target instanceof Clone;
         const damage  = isClone ? 1 : (this._fixedDamage !== undefined ? this._fixedDamage : (this._isYellowShockwave ? this._yellowSpeedDmg : 2));
-        target.hp -= damage;
+        const actualPulseDmg = (target.absorbDamage) ? target.absorbDamage(damage) : (target.hp -= damage, damage);
         this.hitList.push(target);
         if (target.onTakeDamage) target.onTakeDamage();
-        if (!isClone) SFX.takeDamage();
-        floatingNumbers.push(new FloatingNumber(cx, target.y, damage.toString(), this.color));
-        spawnSquareParticles(cx, cy, this.color, 8, 1, 3, 5);
+        if (!isClone && actualPulseDmg > 0) SFX.takeDamage();
+        if (actualPulseDmg > 0) {
+          floatingNumbers.push(new FloatingNumber(cx, target.y, actualPulseDmg.toString(), this.color));
+          spawnSquareParticles(cx, cy, this.color, 8, 1, 3, 5);
+        }
       }
     });
   }
@@ -183,18 +185,20 @@ class BluePulse {
       if (onVertical || onHorizontal) {
         const isClone = target instanceof Clone;
         const dmg     = isClone ? 1 : this.damage;
-        target.hp -= dmg;
+        const actualBluePulse = (target.absorbDamage) ? target.absorbDamage(dmg) : (target.hp -= dmg, dmg);
         this.hitList.push(target);
         if (target.onTakeDamage) target.onTakeDamage();
-        if (!isClone) {
+        if (!isClone && actualBluePulse > 0) {
           SFX.takeDamage();
           // Pulse hits also increment blueHits by 2 (same as projectile hits)
           if (this.owner && this.owner.blueHits !== undefined) {
             this.owner.blueHits += 2;
           }
         }
-        floatingNumbers.push(new FloatingNumber(cx, target.y, dmg.toString(), this.color));
-        spawnSquareParticles(cx, cy, this.color, 8, 1, 3, 5);
+        if (actualBluePulse > 0) {
+          floatingNumbers.push(new FloatingNumber(cx, target.y, actualBluePulse.toString(), this.color));
+          spawnSquareParticles(cx, cy, this.color, 8, 1, 3, 5);
+        }
       }
     });
   }
@@ -263,12 +267,14 @@ class FollowingPulse {
       if (onVertical || onHorizontal) {
         const isClone = victim instanceof Clone;
         const damage  = isClone ? 1 : (this._fixedDamage !== undefined ? this._fixedDamage : 1 + Math.floor(this.power));
-        victim.hp -= damage;
+        const actualFollowDmg = (victim.absorbDamage) ? victim.absorbDamage(damage) : (victim.hp -= damage, damage);
         this.hitList.push(victim);
         if (victim.onTakeDamage) victim.onTakeDamage();
-        if (!isClone) SFX.takeDamage();
-        floatingNumbers.push(new FloatingNumber(vx, victim.y, damage.toString(), this.color));
-        spawnSquareParticles(vx, vy, this.color, 8, 1, 3, 5);
+        if (!isClone && actualFollowDmg > 0) SFX.takeDamage();
+        if (actualFollowDmg > 0) {
+          floatingNumbers.push(new FloatingNumber(vx, victim.y, actualFollowDmg.toString(), this.color));
+          spawnSquareParticles(vx, vy, this.color, 8, 1, 3, 5);
+        }
       }
     });
   }

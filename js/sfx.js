@@ -9,6 +9,7 @@ const SFX = (() => {
   }
 
   // Core tone builder
+  let _lastTakeDamage = 0;
   function _play({ type = "square", freq = 440, freq2 = null, gain = 0.18,
                    attack = 0.005, decay = 0.08, sustain = 0, release = 0.05,
                    duration = 0.12, detune = 0, filterFreq = null, filterQ = 1 }) {
@@ -80,6 +81,9 @@ const SFX = (() => {
   return {
     // Square takes damage — punchy low thud + distorted crack
     takeDamage() {
+      const now = performance.now();
+      if (now - _lastTakeDamage < 80) return; // throttle: max ~12/s on mobile
+      _lastTakeDamage = now;
       // Low body thud
       _play({ type: "sawtooth", freq: 90, freq2: 40, gain: 0.32,
               attack: 0.001, decay: 0.07, release: 0.10, duration: 0.09,

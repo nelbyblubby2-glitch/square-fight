@@ -123,6 +123,13 @@ function getChargeBar(s) {
         filled: s.purpleChargeSegments ?? 0,
         color: s.def.color,
       };
+    case "silver":
+      return {
+        pct:   Math.min(100, (s.silverSpawnTimer / SILVER_SPAWN_INTERVAL) * 100),
+        color: SILVER_COLOR,
+        ready: s.silverSpawnTimer >= SILVER_SPAWN_INTERVAL ||
+               silverSquares.length >= SILVER_MAX_COUNT,
+      };
     case "gold":
       return null;  // Gold has no charge bar — coins drop on clash, no cooldown UI
     case "magenta":

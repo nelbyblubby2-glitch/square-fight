@@ -36,7 +36,7 @@ registerBehavior("red", {
     if (s._redSpeedBoostTimer > 0) {
       s._redSpeedBoostTimer--;
       if (s._redSpeedBoostTimer === 0) {
-        s.currentSpeed = BASE_SPEED + (s._rogueSpeedBonus || 0);
+        s.currentSpeed = s.baseSpeed + (s._rogueSpeedBonus || 0);
         s.normalizeVelocity();
       }
     }
@@ -85,7 +85,7 @@ registerBehavior("red", {
     if (s._rogueSpeedOnBigClash) {
       const dmgDealt = s.getCollisionDamage();
       if (dmgDealt > 10) {
-        s.currentSpeed = (BASE_SPEED + (s._rogueSpeedBonus || 0)) + 3;
+        s.currentSpeed = (s.baseSpeed + (s._rogueSpeedBonus || 0)) + 3;
         s.normalizeVelocity();
         s._redSpeedBoostTimer = 120; // 2s
       }
@@ -360,11 +360,11 @@ registerBehavior("yellow", {
     s.yellowSpeedCap  += s.yellowCapGrowth;
     // Speed retention: keep 20% of built-up speed above base instead of full reset
     if (s._rogueYellowSpeedRetain) {
-      const baseSpd = BASE_SPEED + (s._rogueSpeedBonus || 0);
+      const baseSpd = s.baseSpeed + (s._rogueSpeedBonus || 0);
       const excess  = speedAtClash - baseSpd;
       s.currentSpeed = baseSpd + Math.max(0, excess * 0.2);
     } else {
-      s.currentSpeed = BASE_SPEED;
+      s.currentSpeed = s.baseSpeed;
     }
     s.normalizeVelocity();
     // Clash heal at 5+ speed (check pre-clash speed)
@@ -509,10 +509,10 @@ registerBehavior("violet", {
 
           const isClone = (target instanceof Clone);
           const damage  = isClone ? 1 : 20;
-          target.hp -= damage;
+          const actualViolet = (target.absorbDamage) ? target.absorbDamage(damage) : (target.hp -= damage, damage);
           if (target.onTakeDamage) target.onTakeDamage();
-          if (!isClone) SFX.takeDamage();
-          floatingNumbers.push(new FloatingNumber(target.x + target.size / 2, target.y, damage.toString(), s.def.color));
+          if (!isClone && actualViolet > 0) SFX.takeDamage();
+          floatingNumbers.push(new FloatingNumber(target.x + target.size / 2, target.y, actualViolet.toString(), s.def.color));
           spawnSquareParticles(target.x + target.size / 2, target.y + target.size / 2, s.def.color, 10, 1, 3, 5);
           if (!isClone) triggerHitFreeze();
         });
@@ -592,9 +592,7 @@ registerBehavior("orange", {
     s._rogueOrangeRadiationInterval = 0;
   },
   onWallBounce(s) {
-    const p = new Pulse(s);
-    if (rogueState) p._fixedDamage = 1;
-    pulses.push(p);
+    pulses.push(new Pulse(s));
   },
   updateSkill(s) {
     // ── Radiation: periodic following pulse toward enemy ──
@@ -798,11 +796,11 @@ registerBehavior("scarlet", {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GRAY — +3 base Clash Damage; shoots a projectile every 4s dealing 3 damage.
+// GRAY — +4 base Clash Damage; shoots a projectile every 4s dealing 4 damage.
 // ─────────────────────────────────────────────────────────────────────────────
 registerBehavior("gray", {
   initState(s) {
-    s.bonusDamage      = (s.bonusDamage || 0) + 3;  // permanent +3 clash damage
+    s.bonusDamage      = (s.bonusDamage || 0) + 4;  // permanent +4 clash damage
     s.grayProjTimer    = 0;
   },
   updateSkill(s) {
@@ -812,7 +810,7 @@ registerBehavior("gray", {
       const enemy = squares.find(t => t !== s);
       if (enemy) {
         const p = new Projectile(s, enemy);
-        p._grayProjDamage = 3;
+        p._grayProjDamage = 4;
         projectiles.push(p);
       }
     }
@@ -827,7 +825,8 @@ registerBehavior("gray", {
 // ─────────────────────────────────────────────────────────────────────────────
 registerBehavior("jade", {
   initState(s) {
-    s.currentSpeed    = GRAY_SPEED;
+    s.baseSpeed       = BASE_SPEED + 0.6; // jade is slightly faster than base
+    s.currentSpeed    = s.baseSpeed;
     s.grayCloneTimer  = 0;
   },
   updateSkill(s) {
@@ -965,7 +964,7 @@ registerBehavior("topaz", {
 // ─────────────────────────────────────────────────────────────────────────────
 registerBehavior("magenta", {
   initState(s) {
-    s.magentaBeamCD      = 0;     // frames until next shot (starts ready)
+    s.magentaBeamCD      = 270;    // frames until next shot (starts ready)
     s.magentaBeamActive  = false; // true while beam is in flight or tethered
     s.magentaLastHp      = s.hp;  // tracks hp each frame to compute damage delta
     s.magentaCDPause     = 0;     // frames to pause CD (clash penalty, like violet)
@@ -989,13 +988,10 @@ registerBehavior("magenta", {
         if (s.magentaLinkDmgTick >= 60) {
           s.magentaLinkDmgTick = 0;
           const target = beam.tetherTarget;
-          target.hp -= 1;
+          const actualTether = (target.absorbDamage) ? target.absorbDamage(1) : (target.hp -= 1, 1);
           target.onTakeDamage();
           SFX.takeDamage();
-          floatingNumbers.push(new FloatingNumber(
-            target.x + target.size / 2, target.y - 10,
-            "1", s.def.color
-          ));
+          floatingNumbers.push(new FloatingNumber(target.x + target.size / 2, target.y - 10, actualTether === 0 ? "0" : "1", s.def.color));
           spawnSquareParticles(target.x + target.size / 2, target.y + target.size / 2, s.def.color, 4, 1, 2, 4);
         }
       }
@@ -1012,7 +1008,7 @@ registerBehavior("magenta", {
     // The link itself cannot be interrupted
     if (!s.magentaBeamActive) {
       // Only pause the CD if we're not actively linked
-      s.magentaCDPause = 120; // 2s pause
+      s.magentaCDPause = 90; // 1.5s pause
     }
   },
   onTakeDamage(s) {
@@ -1025,13 +1021,10 @@ registerBehavior("magenta", {
 
     const reflected = damageTaken; // 100% reflection
     const target    = beam.tetherTarget;
-    target.hp -= reflected;
+    const actualReflect = (target.absorbDamage) ? target.absorbDamage(reflected) : (target.hp -= reflected, reflected);
     target.onTakeDamage();
     SFX.takeDamage();
-    floatingNumbers.push(new FloatingNumber(
-      target.x + target.size / 2, target.y - 10,
-      reflected.toString(), s.def.color
-    ));
+    floatingNumbers.push(new FloatingNumber(target.x + target.size / 2, target.y - 10, actualReflect.toString(), s.def.color));
     spawnSquareParticles(target.x + target.size / 2, target.y + target.size / 2, s.def.color, 6, 1, 3, 5);
   },
 });
@@ -1107,8 +1100,8 @@ registerBehavior("emerald", {
     s.emeraldPerpY =  dx / dist;
 
     s.emeraldBarraging    = true;
-    s.emeraldBarrageTimer = 120;
-    s.emeraldShotsLeft    = 30;
+    s.emeraldBarrageTimer = 180;
+    s.emeraldShotsLeft    = 70;
     s.emeraldShotGap      = 0;
   },
   onHitEnemy(s) {
@@ -1182,5 +1175,30 @@ registerBehavior("crimson", {
     }
 
     s.crimsonDebounce = 20; // ~0.33s debounce
+  },
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SILVER — +3 base Clash Damage (4 total).
+//          Every 4s, fires a SilverProjectile in a random direction.
+//          The projectile bounces off walls; 0.8s after its first wall bounce
+//          it converts into a SilverSquare pickup (owned by this Silver).
+//          The projectile hits enemies for 4 dmg but does NOT drop a pickup on hit.
+//          Will not fire if there are already 4 pickups in the arena.
+// ─────────────────────────────────────────────────────────────────────────────
+registerBehavior("silver", {
+  initState(s) {
+    s.bonusDamage       = (s.bonusDamage || 0) + 3; // +3 clash → 4 total
+    s.silverSpawnTimer  = 0;
+  },
+  updateSkill(s) {
+    s.silverSpawnTimer++;
+    if (s.silverSpawnTimer >= SILVER_SPAWN_INTERVAL) { // 240 frames = 4s
+      if (silverSquares.length < SILVER_MAX_COUNT) {
+        s.silverSpawnTimer = 0; // only reset if actually fired
+        silverProjectiles.push(new SilverProjectile(s));
+      }
+    }
   },
 });

@@ -8,7 +8,6 @@ const ACTION_COOLDOWN  = 360;
 const SHOT_GAP         = 8;
 const FREEZE_DURATION  = 4;
 const HIT_IMMUNITY     = 15;
-const GRAY_SPEED       = 3.8;   // slightly faster than BASE_SPEED (3.2)
 
 // ── Virtual Resolution ──
 const VIRTUAL_WIDTH = 2560;
@@ -27,7 +26,7 @@ const squareDefs = {
   6:  { name: "Purple",   color: "#b33eff", type: "purple",   desc: "Hits apply poison (2 dmg/s). Every 4th bounce (wall/enemy) adds +1s to your poison duration." },
   7:  { name: "Pink",     color: "#ff69b4", type: "pink",     desc: "Shoot projectiles that bounce on walls (+1 Delayed Damage). Enemy hits trigger a Pulse that deals delayed damage. (Cooldown: 8s)" },
   8:  { name: "White",    color: "#ffffff", type: "white",    desc: "Spawns a companion. Hit White to buff its Speed temporarily and increase Damage by +1. Companion deals 3 Damage." },
-  9:  { name: "Gray",     color: "#b0b0b0", type: "gray",     desc: "Deals +3 base Clash Damage. Shoots a projectile every 4s that deals 3 damage." },
+  9:  { name: "Gray",     color: "#b0b0b0", type: "gray",     desc: "Deals +4 base Clash Damage. Shoots a projectile every 4s that deals 4 damage." },
   10: { name: "Brown",    color: "#d28a4e", type: "brown",    desc: "Wall bounces place a spike on the wall. Enemies touching a spike take 1 dmg. Each hit on an enemy permanently increases Brown's knockback." },
 
   // --- RARE ELEMENTS & VIBRANT SHADES (Radiant Glow) ---
@@ -39,13 +38,16 @@ const squareDefs = {
   16: { name: "Indigo",   color: "#786fa6", type: "indigo",   desc: "Shoots projectiles every 2s dealing 1 dmg. Hits bounce and turn into a 1-HP copy after 1s." },
   17: { name: "Violet",   color: "#9b5de5", type: "violet",   desc: "Every 5s, stops to charge a high-precision laser. Deals 20 damage if it hits." },
   18: { name: "Magenta",  color: "#ff00ff", type: "magenta",  desc: "Every 4.5s, fires a beam that tethers the enemy for 4s. While linked, 100% of any damage Magenta takes is reflected back to the enemy. Clash pauses the cooldown." },
-  19: { name: "Mist",     color: "#e3f2fd", type: "mist",     desc: "Shoots 3 projectiles in a tiny arc every 2s, each dealing 1 dmg. After hitting the enemy 3 times, teleports to a random free spot in the arena." },
+  19: { name: "Mist",     color: "#d7eeff", type: "mist",     desc: "Shoots 3 projectiles in a tiny arc every 2s, each dealing 1 dmg. After hitting the enemy 3 times, teleports to a random free spot in the arena." },
 
-  // --- HIGH-SPECIFIC ULTRA GEMSTONES & PRECIOUS TINTS (Deep Luxury Colors) ---
+  // --- GEMSTONES & PRECIOUS TINTS ---
   20: { name: "Ruby",     color: "#ff1493", type: "ruby",     desc: "Shoots a projectile that bounces exactly once off a wall in a random direction every 4s. A searing laser line connects the bounce point. Crossing the line deals 2 Damage." },
   21: { name: "Sapphire", color: "#2255cc", type: "sapphire", desc: "When hit, Heal +4 HP, +8px Size, and +1 Damage. (Cooldown: 4s)" },
   22: { name: "Emerald",  color: "#00ff88", type: "emerald",  desc: "Every 6s, locks completely in place for 2s to fire a rapid-fire barrage of 12 projectiles toward the enemy. Each bullet deals 2 damage." },
   23: { name: "Topaz",    color: "#fff200", type: "topaz",    desc: "Every 10s, drops a construct (max 3). Constructs heal +3 HP when the enemy hits them. Oldest construct removed when limit is exceeded. Starts with +3 Clash Damage." },
   24: { name: "Crimson",  color: "#e60000", type: "crimson",  desc: "On Clash: Apply bleed to enemy (4s + 1s per 10 HP lost) and heal +1 HP (5s cooldown, heals scale with HP lost)." },
-  25: { name: "Jade",     color: "#00a86b", type: "jade",     desc: "Every 0.3s, leaves a static clone that lasts 1.5s. Enemy touching the clone gets frozen for 3s. Frozen enemies take 10 dmg when hit. Slightly faster than others." },
+  25: { name: "Jade",     color: "#00a86b", type: "jade",     desc: "Every 0.3s, leaves a static clone that lasts 1.5s. Enemy touching the clone gets frozen for 2.5s and triggers a chase. Frozen enemies take 10 dmg (+6 base Clash Damage) when hit. Slightly faster than others." },
+
+  // --- SPECIAL ---
+  26: { name: "Silver",   color: "#e2e8f0", type: "silver",   desc: "Starts with +3 Clash Damage (4 total). Passively spawns small Silver pickups in the arena every 4s (max 4). Collecting one grants immunity to the next hit." },
 };

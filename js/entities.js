@@ -403,11 +403,11 @@ class BrownSpike {
       if (s === this.owner) return;
       if (s.x < hb.x + hb.w && s.x + s.size > hb.x &&
           s.y < hb.y + hb.h && s.y + s.size > hb.y) {
-        s.hp -= 1;
+        const actualSpikeDmg = (s.absorbDamage) ? s.absorbDamage(1) : (s.hp -= 1, 1);
         s.onTakeDamage();
-        SFX.takeDamage();
+        if (actualSpikeDmg > 0) SFX.takeDamage();
         this.hitCooldown = 40;
-        floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, "1", this.owner.def.color));
+        floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, actualSpikeDmg.toString(), this.owner.def.color));
         spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, this.owner.def.color, 5, 1, 3, 4);
       }
     });
@@ -420,7 +420,7 @@ class BrownSpike {
           c.y < hb.y + hb.h && c.y + c.size > hb.y) {
         c.hp = 0;
         this.hitCooldown = 40;
-        spawnSquareParticles(c.x + c.size / 2, c.y + c.size / 2, c.def.color, 6, 1, 3, 4);
+        spawnSquareParticles(c.x + c.size / 2, c.y + c.size / 2, c.def ? c.def.color : "#ffffff", 6, 1, 3, 4);
       }
     }
   }
@@ -532,10 +532,10 @@ class LimeProjectile {
       if (dest.isWall && this.wallHitCD <= 0) {
         this.pullWallBounces++;
         const dmg = this.pullWallBounces;
-        target.hp -= dmg;
+        const actualLimeDmg = (target.absorbDamage) ? target.absorbDamage(dmg) : (target.hp -= dmg, dmg);
         target.onTakeDamage();
         SFX.takeDamage();
-        floatingNumbers.push(new FloatingNumber(target.x + this.targetOriginalSize / 2, target.y, dmg.toString(), this.owner.def.color));
+        floatingNumbers.push(new FloatingNumber(target.x + this.targetOriginalSize / 2, target.y, actualLimeDmg.toString(), this.owner.def.color));
         spawnSquareParticles(target.x + target.size / 2, target.y + target.size / 2, this.owner.def.color, 6, 1, 3, 5);
         triggerHitFreeze();
         this.wallHitCD = 15;
@@ -641,8 +641,11 @@ class GrayStaticClone {
       if (s === this.owner) return;
       if (s.x < this.x + this.size && s.x + s.size > this.x &&
           s.y < this.y + this.size && s.y + s.size > this.y) {
-        // Freeze the enemy in place for 3s
-        s.grayFreezeTimer = 180;
+        // Freeze the enemy in place for 2.5s
+        s.jadeboundTimer = 150;
+        s.jadeboundColor = this.owner.def.color;
+        // Give jade owner a persistent chase: re-aims every wall bounce for 5s
+        this.owner.jadeChaseTimer = 108;  // 1.8s at 60fps
         this.life = 0;  // consume the clone on contact
         spawnSquareParticles(this.x + this.size / 2, this.y + this.size / 2, this.color, 8, 1, 3, 5);
       }
@@ -743,10 +746,10 @@ class MistProjectile {
       if (!this.alive || s === this.owner) return;
       if (this.x > s.x && this.x < s.x + s.size &&
           this.y > s.y && this.y < s.y + s.size) {
-        s.hp -= 1;
+        const actualStaticDmg = (s.absorbDamage) ? s.absorbDamage(1) : (s.hp -= 1, 1);
         s.onTakeDamage();
         SFX.takeDamage();
-        floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, "1", this.owner.def.color));
+        floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, actualStaticDmg.toString(), this.owner.def.color));
         spawnSquareParticles(this.x, this.y, this.owner.def.color, 5, 1, 2, 4);
         triggerHitFreeze();
         this.alive = false;
@@ -1181,10 +1184,10 @@ class RubyLaser {
       );
       // Deal damage on crossing, or on first contact (not already touching)
       if (crossed || (overlapping && !this._wasOverlapping)) {
-        enemy.hp -= 2;
+        const actualRubyDmg = (enemy.absorbDamage) ? enemy.absorbDamage(2) : (enemy.hp -= 2, 2);
         enemy.onTakeDamage();
         SFX.takeDamage();
-        floatingNumbers.push(new FloatingNumber(ex, enemy.y, "2", this.owner.def.color));
+        floatingNumbers.push(new FloatingNumber(ex, enemy.y, actualRubyDmg, this.owner.def.color));
         spawnSquareParticles(ex, ey, this.owner.def.color, 6, 1, 3, 5);
         triggerHitFreeze();
         this.dmgCD = 30; // 0.5s cooldown
@@ -1246,4 +1249,115 @@ function _rubySegCross(ax, ay, bx, by, cx, cy, dx, dy) {
   const t = ((cx - ax) * d2y - (cy - ay) * d2x) / denom;
   const u = ((cx - ax) * d1y - (cy - ay) * d1x) / denom;
   return t >= 0 && t <= 1 && u >= 0 && u <= 1;
+}
+
+
+// ── Silver projectile ──────────────────────────────────────────────────────────
+// Fired by Silver every 4s in a random direction. Bounces off walls; after
+// the FIRST wall bounce a 0.8s (48-frame) countdown starts, then it converts
+// into a SilverSquare pickup owned by the firing Silver. Hitting an enemy
+// deals 4 damage but does NOT convert into a pickup.
+class SilverProjectile {
+  constructor(owner) {
+    this.owner  = owner;
+    this.size   = 10;
+    this.x      = owner.x + owner.size / 2;
+    this.y      = owner.y + owner.size / 2;
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 7;
+    this.vx     = Math.cos(angle) * speed;
+    this.vy     = Math.sin(angle) * speed;
+    this.color  = "#e2e8f0";
+    this.hasBounced     = false; // has it hit a wall yet?
+    this.bounceCountdown = -1;  // frames until it turns into a pickup (-1 = not started)
+    this.spinAngle = 0;
+    this.alive  = true;
+  }
+
+  update() {
+    this.x += this.vx;
+    this.y += this.vy;
+    this.spinAngle += 0.15;
+
+    // Wall bounce
+    let bounced = false;
+    if (this.x <= arena.x)                 { this.vx =  Math.abs(this.vx); bounced = true; this.x = arena.x; }
+    if (this.x >= arena.x + arena.w - this.size) { this.vx = -Math.abs(this.vx); bounced = true; this.x = arena.x + arena.w - this.size; }
+    if (this.y <= arena.y)                 { this.vy =  Math.abs(this.vy); bounced = true; this.y = arena.y; }
+    if (this.y >= arena.y + arena.h - this.size) { this.vy = -Math.abs(this.vy); bounced = true; this.y = arena.y + arena.h - this.size; }
+
+    if (bounced && !this.hasBounced) {
+      this.hasBounced      = true;
+      this.bounceCountdown = 48; // 0.8s at 60fps
+    }
+
+    if (this.hasBounced && this.bounceCountdown > 0) {
+      this.bounceCountdown--;
+    }
+
+    // Particle trail
+    if (Math.random() > 0.4) {
+      const p   = new Particle(this.x + this.size / 2, this.y + this.size / 2, this.color, 3);
+      p.vx      = p.vx * 0.2;
+      p.vy      = p.vy * 0.2;
+      p.decay   = 0.07;
+      particles.push(p);
+    }
+  }
+
+  draw() {
+    const cx = this.x + this.size / 2;
+    const cy = this.y + this.size / 2;
+    const r  = this.size / 2;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(this.spinAngle);
+    ctx.fillStyle = this.color;
+    ctx.globalAlpha = 0.9;
+    ctx.fillRect(-r, -r, this.size, this.size);
+    // Glow ring if countdown is active — flashes faster as it nears 0
+    if (this.hasBounced && this.bounceCountdown > 0) {
+      const flash = this.bounceCountdown < 20 ? (Math.sin(Date.now() / 40) * 0.5 + 0.5) : 0.5;
+      ctx.strokeStyle = this.color;
+      ctx.lineWidth   = 2;
+      ctx.globalAlpha = flash;
+      ctx.strokeRect(-r - 3, -r - 3, this.size + 6, this.size + 6);
+    }
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+}
+// ── Silver pickup square ───────────────────────────────────────────────────────
+// Spawns passively in the arena every 4s (max 4). Any player who touches it
+// gains immunity to the next incoming damage source. The immunity stacks via
+// `silverImmunity` (integer count), so roguelike upgrades can allow >1 stack.
+class SilverSquare {
+  constructor(owner) {
+    this.owner = owner; // the Silver square that spawned this pickup
+    this.size = 16; // same size as GoldCoin
+    // Pick a random position fully inside the arena
+    this.x = arena.x + 40 + Math.random() * (arena.w - 80 - this.size);
+    this.y = arena.y + 40 + Math.random() * (arena.h - 80 - this.size);
+    this.color = "#e2e8f0";
+    this.spinAngle = Math.random() * Math.PI * 2;
+    this.bobTimer  = Math.random() * Math.PI * 2;
+    this.alive = true;
+  }
+
+  update() {
+    this.spinAngle += 0.06;
+    this.bobTimer  += 0.07;
+  }
+
+  draw() {
+    const cx = this.x + this.size / 2;
+    const cy = this.y + this.size / 2 + Math.sin(this.bobTimer) * 2.5;
+    const r  = this.size / 2;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(this.spinAngle);
+    ctx.fillStyle = this.color;
+    ctx.fillRect(-r, -r, this.size, this.size);
+    ctx.restore();
+  }
 }
