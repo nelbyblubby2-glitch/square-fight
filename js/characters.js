@@ -117,7 +117,7 @@ registerBehavior("red", {
       s.hp = Math.min(s.maxHp, s.hp + 20);
       SFX.heal();
       floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y - 14, "+20", "#00ff44"));
-      spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, s.def.color, 12, 1, 3, 6);
+      spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, s.def, 12, 1, 3, 6);
     }
 
     // ── Counter-chase: charges on taking damage (2 hits = trigger chase) ──
@@ -216,7 +216,7 @@ registerBehavior("blue", {
       sw.maxSize = Math.max(arena.w, arena.h) * 3;
       sw.growth  = 30;
       bluePulses.push(sw);
-      spawnSquareParticles(cx, cy, s.def.color, 20, 2, 4, 8);
+      spawnSquareParticles(cx, cy, s.def, 20, 2, 4, 8);
       SFX.takeDamage();
     }
 
@@ -285,7 +285,7 @@ registerBehavior("blue", {
                 sp._splinterDamage = 2;
                 projectiles.push(sp);
               });
-              spawnSquareParticles(cx, cy, s.def.color, 12, 1, 3, 6);
+              spawnSquareParticles(cx, cy, s.def, 12, 1, 3, 6);
             }
           }
         }
@@ -350,7 +350,7 @@ registerBehavior("yellow", {
         sw._yellowSpeedDmg = Math.max(1, Math.floor(s.currentSpeed * 0.5));
         sw._isYellowShockwave = true;
         pulses.push(sw);
-        spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, s.def.color, 10, 1, 3, 6);
+        spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, s.def, 10, 1, 3, 6);
       }
     }
   },
@@ -512,8 +512,8 @@ registerBehavior("violet", {
           const actualViolet = (target.absorbDamage) ? target.absorbDamage(damage) : (target.hp -= damage, damage);
           if (target.onTakeDamage) target.onTakeDamage();
           if (!isClone && actualViolet > 0) SFX.takeDamage();
-          floatingNumbers.push(new FloatingNumber(target.x + target.size / 2, target.y, actualViolet.toString(), s.def.color));
-          spawnSquareParticles(target.x + target.size / 2, target.y + target.size / 2, s.def.color, 10, 1, 3, 5);
+          floatingNumbers.push(new FloatingNumber(target.x + target.size / 2, target.y, actualViolet.toString(), s.def));
+          spawnSquareParticles(target.x + target.size / 2, target.y + target.size / 2, s.def, 10, 1, 3, 5);
           if (!isClone) triggerHitFreeze();
         });
       }
@@ -526,7 +526,7 @@ registerBehavior("violet", {
       if (s.violetChargeTimer >= 600) {
         s.violetCharged     = true;
         s.violetChargeTimer = 0;
-        spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, s.def.color, 10, 1, 3, 5);
+        spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, s.def, 10, 1, 3, 5);
       }
     } else {
       // Charged: lock aim and begin 1s aim window, then recharge
@@ -677,7 +677,7 @@ registerBehavior("brown", {
       s.brownChargeTimer++;
       if (s.brownChargeTimer >= 360) {
         s.brownCharged = true;
-        spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, s.def.color, 10, 1, 3, 5);
+        spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, s.def, 10, 1, 3, 5);
       }
     }
   },
@@ -776,7 +776,7 @@ registerBehavior("scarlet", {
       const target = squares.find(t => t !== s);
       if (target) {
         projectiles.push(new Projectile(s, target));
-        spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, s.def.color, 5, 1, 2, 4);
+        spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, s.def, 5, 1, 2, 4);
       }
       s.scarletCounter = 0;
     }
@@ -787,7 +787,7 @@ registerBehavior("scarlet", {
       const target = squares.find(t => t !== s);
       if (target) {
         projectiles.push(new Projectile(s, target));
-        spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, s.def.color, 5, 1, 2, 4);
+        spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, s.def, 5, 1, 2, 4);
       }
       s.scarletCounter = 0;
     }
@@ -991,8 +991,8 @@ registerBehavior("magenta", {
           const actualTether = (target.absorbDamage) ? target.absorbDamage(1) : (target.hp -= 1, 1);
           target.onTakeDamage();
           SFX.takeDamage();
-          floatingNumbers.push(new FloatingNumber(target.x + target.size / 2, target.y - 10, actualTether === 0 ? "0" : "1", s.def.color));
-          spawnSquareParticles(target.x + target.size / 2, target.y + target.size / 2, s.def.color, 4, 1, 2, 4);
+          floatingNumbers.push(new FloatingNumber(target.x + target.size / 2, target.y - 10, actualTether === 0 ? "0" : "1", s.def));
+          spawnSquareParticles(target.x + target.size / 2, target.y + target.size / 2, s.def, 4, 1, 2, 4);
         }
       }
       return;
@@ -1024,8 +1024,8 @@ registerBehavior("magenta", {
     const actualReflect = (target.absorbDamage) ? target.absorbDamage(reflected) : (target.hp -= reflected, reflected);
     target.onTakeDamage();
     SFX.takeDamage();
-    floatingNumbers.push(new FloatingNumber(target.x + target.size / 2, target.y - 10, actualReflect.toString(), s.def.color));
-    spawnSquareParticles(target.x + target.size / 2, target.y + target.size / 2, s.def.color, 6, 1, 3, 5);
+    floatingNumbers.push(new FloatingNumber(target.x + target.size / 2, target.y - 10, actualReflect.toString(), s.def));
+    spawnSquareParticles(target.x + target.size / 2, target.y + target.size / 2, s.def, 6, 1, 3, 5);
   },
 });
 
@@ -1162,7 +1162,7 @@ registerBehavior("crimson", {
 
     // Always apply bleed to enemy
     enemy.applyBleed(bleedS * 60, s.def.color);
-    spawnSquareParticles(enemy.x + enemy.size / 2, enemy.y + enemy.size / 2, s.def.color, 6, 1, 2, 4);
+    spawnSquareParticles(enemy.x + enemy.size / 2, enemy.y + enemy.size / 2, s.def, 6, 1, 2, 4);
 
     // Heal only if CD is ready
     if (s.crimsonHealCD <= 0) {
@@ -1200,5 +1200,33 @@ registerBehavior("silver", {
         silverProjectiles.push(new SilverProjectile(s));
       }
     }
+  },
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BRONZE — 2 charges; shoot piercing stick every 2s; sticks embed in walls;
+//          walk over own sticks to recover a charge.
+// ─────────────────────────────────────────────────────────────────────────────
+registerBehavior("bronze", {
+  initState(s) {
+    s.bronzeCharges    = 2;
+    s.bronzeMaxCharges = 2;
+    s.bronzeShootTimer = 120; // 2s before first shot
+  },
+  updateSkill(s) {
+    if (s.bronzeCharges > 0) {
+      if (s.bronzeShootTimer > 0) {
+        s.bronzeShootTimer--;
+      } else {
+        const target = squares.find(t => t !== s);
+        if (target) {
+          bronzeSticks.push(new BronzeStick(s, target));
+          s.bronzeCharges--;
+          s.bronzeShootTimer = 120;
+        }
+      }
+    }
+    // Timer pauses when out of charges — resumes the moment a stick is collected
   },
 });

@@ -1,10 +1,24 @@
 // ── Screen management ─────────────────────────────────────────────────────────
 let activeMode = "menu"; // "menu" | "squarefight-select" | "battle" | "rogue-select" | "rogue-run"
-let _lastHudBottom = 0; // tracks HUD height to trigger resize() when bars appear/disappear
+
+// ── HUD resize observer ───────────────────────────────────────────────────────
+// Replaces the per-frame getBoundingClientRect() poll that previously forced a
+// layout reflow on every battle frame. ResizeObserver fires only when the HUD
+// actually changes size (e.g. a charge bar appears/disappears), so resize() is
+// called reactively at most a handful of times per match instead of 60x/second.
+let _hudResizeObserver = null;
+function _installHudObserver() {
+  if (_hudResizeObserver) return; // already wired up
+  const hud = document.getElementById("hud");
+  if (!hud || typeof ResizeObserver === "undefined") return;
+  _hudResizeObserver = new ResizeObserver(() => { resize(); });
+  _hudResizeObserver.observe(hud);
+}
 
 // ── Silver pickup squares ──────────────────────────────────────────────────────
 let silverSquares      = [];
 let silverProjectiles  = [];
+let bronzeSticks       = [];
 const SILVER_SPAWN_INTERVAL = 240; // 4 seconds at 60fps
 const SILVER_MAX_COUNT      = 4;
 const SILVER_COLOR          = "#e2e8f0";
@@ -81,6 +95,7 @@ function goToMainMenu() {
   rubyLasers         = [];
   silverSquares      = [];
   silverProjectiles  = [];
+  bronzeSticks       = [];
   freezeTimer      = 0;
   winDelayTimer    = 0;
   window.winScreenVisible = false;
@@ -112,11 +127,11 @@ function buildRogueSelectGrid() {
 
     const preview = document.createElement("div");
     preview.className = "rogue-char-preview";
-    preview.style.background = def.color;
+    preview.style.background = getSquareCSSGradient(def);
 
     const name = document.createElement("div");
     name.className = "rogue-char-name";
-    name.style.color = def.color;
+    applyColorToText(name, def);
     name.textContent = def.name.toUpperCase();
 
     card.appendChild(preview);
@@ -154,6 +169,10 @@ function onWinClick() {
 // ── Reset / start ─────────────────────────────────────────────────────────────
 function resetBattle() {
   resize();
+  // Clear HUD property caches so the first frame after reset writes all values
+  // unconditionally (characters or HP totals may have changed).
+  _hudCache.left  = {};
+  _hudCache.right = {};
   companions    = [];
   clones        = [];
   brownSpikes   = [];
@@ -169,6 +188,7 @@ function resetBattle() {
   rubyLasers         = [];
   silverSquares      = [];
   silverProjectiles  = [];
+  bronzeSticks       = [];
   bluePulses   = [];
   squares       = [new Square(selectedIds[0], "left"), new Square(selectedIds[1], "right")];
   projectiles   = [];
@@ -190,10 +210,11 @@ function startBattle() {
   currentScreen = "battle";
   activeMode = "battle";
   showScreen("battle"); // hides other screens, shows HUD
+  _installHudObserver(); // wire up ResizeObserver the first time a battle starts
   // Defer resize() by one frame so the browser reflows the HUD before
-  // getBoundingClientRect() measures hudBottom. Without this, calling resize()
-  // synchronously right after display:none→flex gives hudBottom=0 (stale value),
-  // which shifts the arena up under the HUD instead of centering it correctly.
+  // measuring hudBottom. Without this, calling resize() synchronously right
+  // after display:none->flex gives hudBottom=0 (stale), which shifts the arena
+  // up under the HUD instead of centering it correctly.
   requestAnimationFrame(() => {
     resetBattle(); // resetBattle() already calls resize() first
   });
@@ -290,6 +311,7 @@ function _runBattle() {
     _updateMistProjectiles();
     _updateEmeraldProjectiles();
     _updateRubyProjectiles();
+    _updateBronzeSticks();
   } else if (freezeTimer > 0) {
     freezeTimer--;
   }
@@ -308,6 +330,7 @@ function _runBattle() {
   mistProjectiles.forEach((mp)  => mp.draw());
   emeraldProjectiles.forEach((ep) => ep.draw());
   rubyProjectiles.forEach((rp)    => rp.draw());
+  bronzeSticks.forEach((bs)       => bs.draw());
   squares.forEach((s) => s.draw());
 
   _drawAndCleanClones();
@@ -325,26 +348,26 @@ function _runBattle() {
   // Update HUD after all damage (including blue pulses) so health bar reaches 0
   if (!gameOver) {
     updateHUD();
-    // Re-measure the HUD each frame; on mobile the HUD can grow/shrink when
-    // character-specific bars (e.g. purple charge) appear or disappear,
-    // shifting the arena down without a resize() call.
-    const hud = document.getElementById("hud");
-    const hudH = hud ? Math.round(hud.getBoundingClientRect().bottom) : 0;
-    if (hudH !== _lastHudBottom) {
-      _lastHudBottom = hudH;
-      resize();
-    }
   }
 
-  for (let i = particles.length - 1; i >= 0; i--) {
+  // Update particles, then draw all at once batched by color
+  for (let i = 0; i < particles.length; i++) {
     particles[i].update();
-    particles[i].draw();
-    if (particles[i].life <= 0) particles.splice(i, 1);
+    if (particles[i].life <= 0) {
+      particles[i] = particles[particles.length - 1];
+      particles.pop();
+      i--;
+    }
   }
-  for (let i = floatingNumbers.length - 1; i >= 0; i--) {
+  drawParticlesBatched(particles);
+  for (let i = 0; i < floatingNumbers.length; i++) {
     floatingNumbers[i].update();
     floatingNumbers[i].draw();
-    if (floatingNumbers[i].life <= 0) floatingNumbers.splice(i, 1);
+    if (floatingNumbers[i].life <= 0) {
+      floatingNumbers[i] = floatingNumbers[floatingNumbers.length - 1];
+      floatingNumbers.pop();
+      i--;
+    }
   }
 
   _checkWin();
@@ -399,8 +422,8 @@ function _updateProjectiles() {
           const actualBlueDmg = s.absorbDamage(pdmg);
           s.onTakeDamage();
           SFX.takeDamage();
-          floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, actualBlueDmg, p.mainOwner.def.color));
-          spawnHitEffect(p.x, p.y, p.mainOwner.def.color);
+          floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, actualBlueDmg, p.mainOwner.def));
+          spawnHitEffect(p.x, p.y, p.mainOwner.def);
           // Spawn pulse — pass hit target so pulse skips it (one source of damage per enemy)
           const pulse = new BluePulse(p.mainOwner, p.x, p.y, p.mainOwner.blueHits || 0, [s]);
           if (p._isBluEmpowered) pulse.applyEmpowered();
@@ -418,8 +441,8 @@ function _updateProjectiles() {
           const actualSplinter = s.absorbDamage(p._splinterDamage);
           s.onTakeDamage();
           SFX.takeDamage();
-          floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, actualSplinter, p.mainOwner.def.color));
-          spawnHitEffect(p.x, p.y, p.mainOwner.def.color);
+          floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, actualSplinter, p.mainOwner.def));
+          spawnHitEffect(p.x, p.y, p.mainOwner.def);
           hit = true;
           return;
         }
@@ -432,7 +455,7 @@ function _updateProjectiles() {
         const actualPdmg = s.absorbDamage(pdmg);
         s.onTakeDamage();
         SFX.takeDamage();
-        floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, actualPdmg, p.mainOwner.def.color));
+        floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, actualPdmg, p.mainOwner.def));
 
         // Scarlet bullet: detonate stored delayed damage on hit
         if (p.isScarlet) {
@@ -440,16 +463,16 @@ function _updateProjectiles() {
           if (burstDmg > 0) {
             const actualBurst = s.absorbDamage(burstDmg);
             SFX.takeDamage();
-            floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y - 16, actualBurst, p.mainOwner.def.color));
-            spawnSquareParticles(p.x, p.y, p.mainOwner.def.color, 10, 1, 4, 6);
+            floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y - 16, actualBurst, p.mainOwner.def));
+            spawnSquareParticles(p.x, p.y, p.mainOwner.def, 10, 1, 4, 6);
             triggerHitFreeze();
           }
         }
 
         if (p.isIndigo || p.isPink) {
-          spawnSquareParticles(p.x, p.y, p.mainOwner.def.color, 6, 1, 3, 5);
+          spawnSquareParticles(p.x, p.y, p.mainOwner.def, 6, 1, 3, 5);
         } else {
-          spawnHitEffect(p.x, p.y, p.mainOwner.def.color);
+          spawnHitEffect(p.x, p.y, p.mainOwner.def);
         }
 
         if (p.isPink) {
@@ -523,7 +546,7 @@ function _updateProjectiles() {
         if (p.mainOwner === c.mainOwner) continue;
         if (p.x > c.x && p.x < c.x + c.size && p.y > c.y && p.y < c.y + c.size) {
           c.hp = 0;
-          spawnSquareParticles(c.x + c.size / 2, c.y + c.size / 2, c.def ? c.def.color : "#ffffff", 8, 1, 4, 6);
+          spawnSquareParticles(c.x + c.size / 2, c.y + c.size / 2, c.def ? c.def : "#ffffff", 8, 1, 4, 6);
         }
       }
     }
@@ -563,8 +586,8 @@ function _updateGiantSquares() {
         g.hitList.push(s);
         if (s.onTakeDamage) s.onTakeDamage();
         if (!isClone && actualGiantDmg > 0) SFX.takeDamage();
-        floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, actualGiantDmg.toString(), g.owner.def.color));
-        spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, g.owner.def.color, 8, 1, 3, 5);
+        floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, actualGiantDmg.toString(), g.owner.def));
+        spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, g.owner.def, 8, 1, 3, 5);
         if (!isClone) triggerHitFreeze();
       }
     });
@@ -592,7 +615,7 @@ function _drawAndCleanClones() {
     const c = clones[ci];
     c.draw();
     if (c.hp <= 0) {
-      spawnSquareParticles(c.x + c.size / 2, c.y + c.size / 2, c.def ? c.def.color : "#ffffff", 12, 1, 4, 8);
+      spawnSquareParticles(c.x + c.size / 2, c.y + c.size / 2, c.def ? c.def : "#ffffff", 12, 1, 4, 8);
       clones.splice(ci, 1);
     }
   }
@@ -698,7 +721,7 @@ function _applyAction(square, action) {
       sw._yellowSpeedDmg = Math.max(1, Math.floor(square.currentSpeed * 0.5));
       sw._isYellowShockwave = true;
       pulses.push(sw);
-      spawnSquareParticles(square.x + square.size / 2, square.y + square.size / 2, square.def.color, 10, 1, 3, 6);
+      spawnSquareParticles(square.x + square.size / 2, square.y + square.size / 2, square.def, 10, 1, 3, 6);
     }
   }
 }
@@ -880,7 +903,7 @@ function _onGoldCoinCollected(goldSquare, coin) {
   }
 
   // Sparkle burst at coin position — no floating text, just particles
-  spawnSquareParticles(coin.x + coin.size / 2, coin.y + coin.size / 2, goldSquare.def.color, 12, 1, 4, 7);
+  spawnSquareParticles(coin.x + coin.size / 2, coin.y + coin.size / 2, goldSquare.def, 12, 1, 4, 7);
   SFX.heal();
 }
 
@@ -891,7 +914,7 @@ function dropGoldCoinsOnClash(goldSquare, enemy) {
   for (let i = 0; i < 2; i++) {
     goldCoins.push(new GoldCoin(cx, cy, goldSquare));
   }
-  spawnSquareParticles(cx, cy, goldSquare.def.color, 6, 1, 2, 4);
+  spawnSquareParticles(cx, cy, goldSquare.def, 6, 1, 2, 4);
 }
 
 // ── Magenta beams ─────────────────────────────────────────────────────────────
@@ -933,8 +956,8 @@ function _updateEmeraldProjectiles() {
         const actualEmeraldDmg = s.absorbDamage(EMERALD_DMG);
         s.onTakeDamage();
         SFX.takeDamage();
-        floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, actualEmeraldDmg, ep.owner.def.color));
-        spawnHitEffect(ep.x, ep.y, ep.owner.def.color);
+        floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, actualEmeraldDmg, ep.owner.def));
+        spawnHitEffect(ep.x, ep.y, ep.owner.def);
         ep.alive = false;
         hit = true;
       }
@@ -961,4 +984,31 @@ function _updateRubyProjectiles() {
 
 function _updateRubyLasers() {
   rubyLasers.forEach(rl => rl.update());
+}
+
+// ── Bronze stick update: move, hit-check, wall-embed, and pickup ──────────────
+function _updateBronzeSticks() {
+  for (let i = bronzeSticks.length - 1; i >= 0; i--) {
+    const stick = bronzeSticks[i];
+    stick.update();
+
+    if (!stick.alive) { bronzeSticks.splice(i, 1); continue; }
+
+    // Once embedded in a wall, check if the Bronze owner walks over it
+    if (stick.stopped) {
+      const owner = stick.owner;
+      if (!owner || owner.hp <= 0) { bronzeSticks.splice(i, 1); continue; }
+
+      const dx   = owner.x + owner.size / 2 - stick.x;
+      const dy   = owner.y + owner.size / 2 - stick.y;
+      const dist = Math.hypot(dx, dy);
+      // Generous pickup radius: half-size of owner + half-length of stick
+      if (dist < owner.size / 2 + stick.length / 2 + 8) {
+        owner.bronzeCharges = Math.min(owner.bronzeMaxCharges, owner.bronzeCharges + 1);
+        spawnSquareParticles(stick.x, stick.y, owner.def, 10, 1, 3, 5);
+        SFX.uiClick && SFX.uiClick();
+        bronzeSticks.splice(i, 1);
+      }
+    }
+  }
 }

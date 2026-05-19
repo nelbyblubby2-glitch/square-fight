@@ -1,3 +1,22 @@
+// ── Gradient text helper ──────────────────────────────────────────────────────
+// Applies a CSS gradient (or solid color) to a text element.
+function applyColorToText(el, def) {
+  if (def && def.color2) {
+    const grad = getSquareCSSGradient(def, '135deg');
+    el.style.background = grad;
+    el.style.webkitBackgroundClip = 'text';
+    el.style.webkitTextFillColor = 'transparent';
+    el.style.backgroundClip = 'text';
+    el.style.color = ''; // clear fallback
+  } else {
+    el.style.background = '';
+    el.style.webkitBackgroundClip = '';
+    el.style.webkitTextFillColor = '';
+    el.style.backgroundClip = '';
+    el.style.color = def ? def.color : '';
+  }
+}
+
 // ── HUD update ────────────────────────────────────────────────────────────────
 
 // Returns { pct, color, ready } for the charge/CD bar,
@@ -12,7 +31,7 @@ function getChargeBar(s) {
           s.redAbilityCD > 0
             ? Math.min(100, (1 - s.redAbilityCD / 120) * 100)
             : 100,
-        color: s.def.color,
+        color: s.def.color, def: s.def,
         ready: s.redAbilityCD <= 0,
       };
     case "brown":
@@ -43,14 +62,14 @@ function getChargeBar(s) {
       const blueMaxCD = Math.max(60, 300 - (s._rogueBlueCondenser || 0) * 30);
       return {
         pct: Math.min(100, (s.blueShootCD / blueMaxCD) * 100),
-        color: s.def.color,
+        color: s.def.color, def: s.def,
         ready: s.blueShootCD >= blueMaxCD,
       };
     }
     case "cyan":
       return {
         pct: Math.min(100, (1 - s.cyanSkillTimer / 390) * 100),
-        color: s.def.color,
+        color: s.def.color, def: s.def,
         ready: s.cyanSkillTimer <= 0,
       };
     case "scarlet":
@@ -63,7 +82,7 @@ function getChargeBar(s) {
     case "indigo":
       return {
         pct: Math.min(100, (1 - s.indigoShootTimer / 180) * 100),
-        color: s.def.color,
+        color: s.def.color, def: s.def,
         ready: s.indigoShootTimer <= 0,
       };
     case "sky":
@@ -72,7 +91,7 @@ function getChargeBar(s) {
           s.skyCloneCooldown > 0
             ? Math.min(100, (1 - s.skyCloneCooldown / 180) * 100)
             : 100,
-        color: s.def.color,
+        color: s.def.color, def: s.def,
         ready: s.skyCloneCooldown <= 0,
       };
     case "lime":
@@ -81,13 +100,13 @@ function getChargeBar(s) {
           s.limeCooldown > 0
             ? Math.min(100, (1 - s.limeCooldown / 300) * 100)
             : 100,
-        color: s.def.color,
+        color: s.def.color, def: s.def,
         ready: s.limeCooldown <= 0 && !s.limeProjectileActive,
       };
     case "ruby":
       return {
         pct:   s.rubyCD > 0 ? Math.min(100, (1 - s.rubyCD / 240) * 100) : 100,
-        color: s.def.color,
+        color: s.def.color, def: s.def,
         ready: s.rubyCD <= 0 && !s.rubyProjectileActive,
       };
     case "green": {
@@ -104,7 +123,7 @@ function getChargeBar(s) {
           s.greenFlashTimer > 0
             ? threshold
             : Math.min(s.greenHitCounter ?? 0, threshold),
-        color: s.def.color,
+        color: s.def.color, def: s.def,
       };
     }
     case "pink":
@@ -114,14 +133,14 @@ function getChargeBar(s) {
           : s.pinkSkillTimer > 0
             ? Math.min(100, (1 - s.pinkSkillTimer / 480) * 100)
             : 100,
-        color: s.def.color,
+        color: s.def.color, def: s.def,
         ready: !s.pinkProjectileActive && s.pinkSkillTimer <= 0,
       };
     case "purple":
       return {
         segments: 4,
         filled: s.purpleChargeSegments ?? 0,
-        color: s.def.color,
+        color: s.def.color, def: s.def,
       };
     case "silver":
       return {
@@ -134,24 +153,24 @@ function getChargeBar(s) {
       return null;  // Gold has no charge bar — coins drop on clash, no cooldown UI
     case "magenta":
       // While beam is active (flying or tethering), show full bar; otherwise show CD fill
-      if (s.magentaBeamActive) return { pct: 100, color: s.def.color, ready: true };
+      if (s.magentaBeamActive) return { pct: 100, color: s.def.color, def: s.def, ready: true };
       return {
         pct:   s.magentaBeamCD > 0 ? Math.min(100, (1 - s.magentaBeamCD / 270) * 100) : 100,
-        color: s.def.color,
+        color: s.def.color, def: s.def,
         ready: s.magentaBeamCD <= 0 && !s.magentaBeamActive,
       };
     case "emerald":
       // During barrage: pulse full bar; during CD: fill toward ready
-      if (s.emeraldBarraging) return { pct: 100, color: s.def.color, ready: true };
+      if (s.emeraldBarraging) return { pct: 100, color: s.def.color, def: s.def, ready: true };
       return {
         pct:   s.emeraldCD > 0 ? Math.min(100, (1 - s.emeraldCD / 360) * 100) : 100,
-        color: s.def.color,
+        color: s.def.color, def: s.def,
         ready: s.emeraldCD <= 0 && !s.emeraldBarraging,
       };
     case "topaz":
       return {
         pct: Math.min(100, (s.topazConstructTimer / 600) * 100),
-        color: s.def.color,
+        color: s.def.color, def: s.def,
         ready: s.topazConstructTimer >= 600,
       };
     case "mist":
@@ -159,7 +178,7 @@ function getChargeBar(s) {
       return {
         segments: 3,
         filled: s.mistFlashTimer > 0 ? 3 : (s.mistHitCounter ?? 0),
-        color: s.def.color,
+        color: s.def.color, def: s.def,
       };
     case "sapphire":
       return {
@@ -167,20 +186,27 @@ function getChargeBar(s) {
           s.sapphirePassiveCD > 0
             ? Math.min(100, (1 - s.sapphirePassiveCD / COOLDOWN_FRAMES) * 100)
             : 100,
-        color: s.def.color,
+        color: s.def.color, def: s.def,
         ready: !(s.sapphirePassiveCD > 0),
       };
     case "crimson":
       return {
         pct:   Math.min(100, (1 - (s.crimsonHealCD || 0) / 300) * 100),
-        color: s.def.color,
+        color: s.def.color, def: s.def,
         ready: !(s.crimsonHealCD > 0),
       };
     case "gray":
       return {
         pct:   Math.min(100, (s.grayProjTimer / 240) * 100),
-        color: s.def.color,
+        color: s.def.color, def: s.def,
         ready: s.grayProjTimer >= 240,
+      };
+    case "bronze":
+      // Segmented: 2 segments = charges remaining
+      return {
+        segments: s.bronzeMaxCharges || 2,
+        filled:   s.bronzeCharges    || 0,
+        color: s.def.color, def: s.def,
       };
     default:
       return null;
@@ -195,7 +221,7 @@ function getChargeBar2(s) {
       return {
         segments: 2,
         filled: s._hitChaseCharge || 0,
-        color: s.def.color,
+        color: s.def.color, def: s.def,
       };
     case "yellow": {
       const threshold = s._rogueYellowBounceShockwaveThreshold || 0;
@@ -203,7 +229,7 @@ function getChargeBar2(s) {
       return {
         segments: threshold,
         filled: s._rogueYellowBounceCount || 0,
-        color: s.def.color,
+        color: s.def.color, def: s.def,
       };
     }
     case "blue": {
@@ -211,7 +237,7 @@ function getChargeBar2(s) {
       return {
         segments: s._rogueBlueSplinterThreshold,
         filled: Math.min(s._rogueBlueSplinterThreshold, s._rogueBlueSplinterCount || 0),
-        color: s.def.color,
+        color: s.def.color, def: s.def,
       };
     }
     case "green": {
@@ -224,10 +250,19 @@ function getChargeBar2(s) {
           s.cooldownTimer > 0
             ? Math.min(100, (1 - s.cooldownTimer / shootCooldown) * 100)
             : 100,
-        color: s.def.color,
+        color: s.def.color, def: s.def,
         ready: s.cooldownTimer <= 0 && s.burstShotsLeft === 0,
       };
     }
+    case "bronze":
+      // Fill bar showing progress toward next shot (only meaningful when charges > 0)
+      return s.bronzeCharges > 0
+        ? {
+            pct:   Math.min(100, (1 - (s.bronzeShootTimer || 0) / 120) * 100),
+            color: s.def.color, def: s.def,
+            ready: (s.bronzeShootTimer || 0) <= 0,
+          }
+        : null;
     default:
       return null;
   }
@@ -243,7 +278,7 @@ function getChargeBar3(s) {
         filled: s._rogueBounceEmpowered
           ? s._rogueBounceEmpowerThreshold
           : s._rogueBounceCount || 0,
-        color: s.def.color,
+        color: s.def.color, def: s.def,
         alwaysFull: s._rogueBounceEmpowered, // pulsing full while empower is active
       };
     case "green": {
@@ -253,7 +288,7 @@ function getChargeBar3(s) {
       return {
         segments: mThreshold,
         filled: mFilled,
-        color: s.def.color,
+        color: s.def.color, def: s.def,
       };
     }
     case "blue": {
@@ -261,7 +296,7 @@ function getChargeBar3(s) {
       return {
         segments: 2,
         filled: Math.min(2, s._blueShootCount || 0),
-        color: s.def.color,
+        color: s.def.color, def: s.def,
       };
     }
     default:
@@ -298,10 +333,29 @@ function getScalingNum(s) {
   }
 }
 
+// Per-side cache so updateHUD only writes to the DOM when a value changes.
+// Keys are the string values last written to each property.
+const _hudCache = { left: {}, right: {} };
+
+// Helper: write to el.style[prop] only when the value has changed.
+function _setStyle(cache, key, el, prop, val) {
+  if (cache[key] === val) return;
+  cache[key] = val;
+  el.style[prop] = val;
+}
+// Helper: write to el.innerText only when the value has changed.
+function _setText(cache, key, el, val) {
+  if (cache[key] === val) return;
+  cache[key] = val;
+  el.innerText = val;
+}
+
 function updateHUD() {
   squares.forEach((s, i) => {
     if (i > 1) return;
     const side = i === 0 ? "left" : "right";
+    const cache = _hudCache[side];
+
     const nameEl = document.getElementById(`name-${side}`);
     const valEl = document.getElementById(`val-${side}`);
     const fill = document.getElementById(`fill-${side}`);
@@ -317,29 +371,45 @@ function updateHUD() {
       s.bleedPreviewHp !== null ? s.bleedPreviewHp : currentHp,
     );
 
-    nameEl.innerText = s.def.name;
-    nameEl.style.color = s.def.color;
-    valEl.innerText = `${Math.max(0, Math.ceil(s.hp))}/${maxHp}`;
+    // Name + HP value — only changes on character swap (effectively never mid-battle)
+    _setText(cache, "name", nameEl, s.def.name);
+    applyColorToText(nameEl, s.def);
+    _setText(cache, "val", valEl, `${Math.max(0, Math.ceil(s.hp))}/${maxHp}`);
 
-    fill.style.width = `${(previewHp / maxHp) * 100}%`;
-    fill.style.backgroundColor = s.def.color;
-    fill.style.boxShadow = `0 0 12px ${s.def.color}`;
+    // Health fill bar
+    const fillW = `${(previewHp / maxHp) * 100}%`;
+    const fillBg = getSquareCSSGradient(s.def, '90deg');
+    const fillShadow = `0 0 12px ${s.def.color}`;
+    _setStyle(cache, "fill.w",  fill, "width",      fillW);
+    _setStyle(cache, "fill.bg", fill, "background", fillBg);
+    _setStyle(cache, "fill.sh", fill, "boxShadow",  fillShadow);
 
-    poisonFill.style.width = `${(currentHp / maxHp) * 100}%`;
-    poisonFill.style.backgroundColor = s.def.color;
-    poisonFill.style.opacity = s.poisonTimer > 0 ? "0.45" : "0";
+    // Poison overlay
+    const poisonW   = `${(currentHp / maxHp) * 100}%`;
+    const poisonBg  = getSquareCSSGradient(s.def, '90deg');
+    const poisonOp  = s.poisonTimer > 0 ? "0.45" : "0";
+    _setStyle(cache, "poison.w",  poisonFill, "width",      poisonW);
+    _setStyle(cache, "poison.bg", poisonFill, "background", poisonBg);
+    _setStyle(cache, "poison.op", poisonFill, "opacity",    poisonOp);
 
+    // Bleed overlay
     if (bleedFill) {
-      bleedFill.style.width = `${(currentHp / maxHp) * 100}%`;
-      bleedFill.style.backgroundColor = s.def.color;
-      bleedFill.style.opacity = (s.bleedTimer > 0 || s.scarletDelayed > 0) ? "0.45" : "0";
+      const bleedW  = `${(currentHp / maxHp) * 100}%`;
+      const bleedBg = getSquareCSSGradient(s.def, '90deg');
+      const bleedOp = (s.bleedTimer > 0 || s.scarletDelayed > 0) ? "0.45" : "0";
+      _setStyle(cache, "bleed.w",  bleedFill, "width",      bleedW);
+      _setStyle(cache, "bleed.bg", bleedFill, "background", bleedBg);
+      _setStyle(cache, "bleed.op", bleedFill, "opacity",    bleedOp);
     }
 
-    cdFill.style.width = `${(s.actionCooldown / ACTION_COOLDOWN) * 100}%`;
-
-    cdFill.style.backgroundColor = s.def.color; 
-    cdFill.style.boxShadow = `0 0 8px ${s.def.color}`; 
-    cdFill.style.opacity = "1"; 
+    // Cooldown bar
+    const cdW  = `${(s.actionCooldown / ACTION_COOLDOWN) * 100}%`;
+    const cdBg = getSquareCSSGradient(s.def, '90deg');
+    const cdSh = `0 0 8px ${s.def.color}`;
+    _setStyle(cache, "cd.w",  cdFill, "width",      cdW);
+    _setStyle(cache, "cd.bg", cdFill, "background", cdBg);
+    _setStyle(cache, "cd.sh", cdFill, "boxShadow",  cdSh);
+    _setStyle(cache, "cd.op", cdFill, "opacity",    "1");
 
     // -- Primary charge bar (opacity-toggled, never removed from DOM) ----------
     const chargeWrap = document.getElementById(`charge-bar-${side}-wrap`);
@@ -359,6 +429,8 @@ function updateHUD() {
         chargeWrap.style.borderRadius = "5px";
         chargeWrap.style.padding = "2px"; 
         chargeWrap.style.boxSizing = "border-box";
+        // Bust segment cache on rebuild
+        delete cache["seg.showFull"]; delete cache["seg.filled"];
         
         for (let i = 0; i < chargeInfo.segments; i++) {
           const seg = document.createElement("div");
@@ -388,20 +460,20 @@ function updateHUD() {
         chargeWrap.dataset.flashTimer = String(flashTimer - 1);
       }
 
-      for (let i = 0; i < chargeInfo.segments; i++) {
-        const filled = showFull ? true : i < chargeInfo.filled;
-        segs[chargeInfo.segments - 1 - i].style.backgroundColor = filled
-          ? chargeInfo.color
-          : "rgba(255, 255, 255, 0.67)";
-        segs[chargeInfo.segments - 1 - i].style.boxShadow = "none";
-        segs[chargeInfo.segments - 1 - i].style.opacity = showFull
-          ? "1"
-          : filled
-            ? "0.4"
-            : "0.15";
+      // Only rewrite segment styles when filled count or showFull flag changed
+      const segKey = `${showFull}:${chargeInfo.filled}`;
+      if (cache["seg.key"] !== segKey) {
+        cache["seg.key"] = segKey;
+        const activeBg = chargeInfo.def ? getSquareCSSGradient(chargeInfo.def, "90deg") : chargeInfo.color;
+        for (let i = 0; i < chargeInfo.segments; i++) {
+          const filled = showFull ? true : i < chargeInfo.filled;
+          segs[chargeInfo.segments - 1 - i].style.background = filled ? activeBg : "rgba(255, 255, 255, 0.67)";
+          segs[chargeInfo.segments - 1 - i].style.boxShadow = "none";
+          segs[chargeInfo.segments - 1 - i].style.opacity = showFull ? "1" : filled ? "0.4" : "0.15";
+        }
       }
-      chargeWrap.style.opacity = "1";
-      chargeWrap.style.display = "flex";
+      _setStyle(cache, "seg.op",      chargeWrap, "opacity", "1");
+      _setStyle(cache, "seg.display", chargeWrap, "display",  "flex");
     } else if (chargeInfo) {
       if (chargeWrap.dataset.mode !== "fill") {
         chargeWrap.innerHTML = "";
@@ -415,21 +487,24 @@ function updateHUD() {
         chargeWrap.style.borderRadius = "";
         chargeWrap.style.padding = "";
         chargeWrap.style.boxSizing = "";
+        delete cache["fill1.h"]; delete cache["fill1.bg"]; delete cache["fill1.sh"];
         const fb = document.createElement("div");
         fb.className = "charge-fill";
         chargeWrap.appendChild(fb);
       }
       const fillBar = chargeWrap.firstChild;
-      fillBar.style.height = `${chargeInfo.pct}%`;
-      fillBar.style.backgroundColor = chargeInfo.color;
-      fillBar.style.opacity = "1"; 
-      fillBar.style.boxShadow = `0 0 10px ${chargeInfo.color}`; 
-      chargeWrap.style.opacity = "1";
-      chargeWrap.style.display = "flex";
+      const fb1Bg = chargeInfo.def ? getSquareCSSGradient(chargeInfo.def, "90deg") : chargeInfo.color;
+      const fb1Sh = `0 0 10px ${chargeInfo.color}`;
+      _setStyle(cache, "fill1.h",  fillBar,    "height",     `${chargeInfo.pct}%`);
+      _setStyle(cache, "fill1.bg", fillBar,    "background", fb1Bg);
+      _setStyle(cache, "fill1.op", fillBar,    "opacity",    "1");
+      _setStyle(cache, "fill1.sh", fillBar,    "boxShadow",  fb1Sh);
+      _setStyle(cache, "seg.op",      chargeWrap, "opacity", "1");
+      _setStyle(cache, "seg.display", chargeWrap, "display",  "flex");
     } else {
-      chargeWrap.style.opacity = "0";
-      chargeWrap.style.display = "none";
-      chargeWrap.dataset.mode = "";
+      _setStyle(cache, "seg.op",      chargeWrap, "opacity", "0");
+      _setStyle(cache, "seg.display", chargeWrap, "display",  "none");
+      if (chargeWrap.dataset.mode !== "") chargeWrap.dataset.mode = "";
     }
 
     // -- Secondary charge bar — supports both segments and fill modes ----------
@@ -450,6 +525,7 @@ function updateHUD() {
           charge2Wrap.style.borderRadius = "5px";
           charge2Wrap.style.padding = "2px";
           charge2Wrap.style.boxSizing = "border-box";
+          delete cache["seg2.key"];
           
           for (let i = 0; i < chargeInfo2.segments; i++) {
             const seg = document.createElement("div");
@@ -479,20 +555,19 @@ function updateHUD() {
           charge2Wrap.dataset.flashTimer = String(flashTimer2 - 1);
         }
 
-        for (let i = 0; i < chargeInfo2.segments; i++) {
-          const filled = showFull2 ? true : i < chargeInfo2.filled;
-          segs2[chargeInfo2.segments - 1 - i].style.backgroundColor = filled
-            ? chargeInfo2.color
-            : "rgba(255, 255, 255, 0.67)";
-          segs2[chargeInfo2.segments - 1 - i].style.boxShadow = "none";
-          segs2[chargeInfo2.segments - 1 - i].style.opacity = showFull2
-            ? "1"
-            : filled
-              ? "0.4"
-              : "0.15";
+        const seg2Key = `${showFull2}:${chargeInfo2.filled}`;
+        if (cache["seg2.key"] !== seg2Key) {
+          cache["seg2.key"] = seg2Key;
+          const activeBg2 = chargeInfo2.def ? getSquareCSSGradient(chargeInfo2.def, "90deg") : chargeInfo2.color;
+          for (let i = 0; i < chargeInfo2.segments; i++) {
+            const filled = showFull2 ? true : i < chargeInfo2.filled;
+            segs2[chargeInfo2.segments - 1 - i].style.background = filled ? activeBg2 : "rgba(255, 255, 255, 0.67)";
+            segs2[chargeInfo2.segments - 1 - i].style.boxShadow = "none";
+            segs2[chargeInfo2.segments - 1 - i].style.opacity = showFull2 ? "1" : filled ? "0.4" : "0.15";
+          }
         }
-        charge2Wrap.style.opacity = "1";
-        charge2Wrap.style.display = "flex";
+        _setStyle(cache, "seg2.op",      charge2Wrap, "opacity", "1");
+        _setStyle(cache, "seg2.display", charge2Wrap, "display",  "flex");
       } else if (chargeInfo2) {
         if (charge2Wrap.dataset.mode !== "fill2") {
           charge2Wrap.innerHTML = "";
@@ -506,23 +581,26 @@ function updateHUD() {
           charge2Wrap.style.borderRadius = "";
           charge2Wrap.style.padding = "";
           charge2Wrap.style.boxSizing = "";
+          delete cache["fill2.h"]; delete cache["fill2.bg"];
+          delete cache["fill2.op"]; delete cache["fill2.sh"];
           const fb2 = document.createElement("div");
           fb2.className = "charge-fill";
           charge2Wrap.appendChild(fb2);
         }
         const fillBar2 = charge2Wrap.firstChild;
-        fillBar2.style.height = `${chargeInfo2.pct}%`;
-        fillBar2.style.backgroundColor = chargeInfo2.color;
-        fillBar2.style.opacity = chargeInfo2.ready ? "1" : "0.6";
-        fillBar2.style.boxShadow = chargeInfo2.ready
-          ? `0 0 8px ${chargeInfo2.color}`
-          : `0 0 4px ${chargeInfo2.color}`;
-        charge2Wrap.style.opacity = "1";
-        charge2Wrap.style.display = "flex";
+        const fb2Bg = chargeInfo2.def ? getSquareCSSGradient(chargeInfo2.def, "90deg") : chargeInfo2.color;
+        const fb2Op = chargeInfo2.ready ? "1" : "0.6";
+        const fb2Sh = chargeInfo2.ready ? `0 0 8px ${chargeInfo2.color}` : `0 0 4px ${chargeInfo2.color}`;
+        _setStyle(cache, "fill2.h",  fillBar2,    "height",     `${chargeInfo2.pct}%`);
+        _setStyle(cache, "fill2.bg", fillBar2,    "background", fb2Bg);
+        _setStyle(cache, "fill2.op", fillBar2,    "opacity",    fb2Op);
+        _setStyle(cache, "fill2.sh", fillBar2,    "boxShadow",  fb2Sh);
+        _setStyle(cache, "seg2.op",      charge2Wrap, "opacity", "1");
+        _setStyle(cache, "seg2.display", charge2Wrap, "display",  "flex");
       } else {
-        charge2Wrap.style.opacity = "0";
-        charge2Wrap.style.display = "none";
-        charge2Wrap.dataset.mode = "";
+        _setStyle(cache, "seg2.op",      charge2Wrap, "opacity", "0");
+        _setStyle(cache, "seg2.display", charge2Wrap, "display",  "none");
+        if (charge2Wrap.dataset.mode !== "") charge2Wrap.dataset.mode = "";
       }
     }
 
@@ -544,6 +622,7 @@ function updateHUD() {
           charge3Wrap.style.borderRadius = "5px";
           charge3Wrap.style.padding = "2px";
           charge3Wrap.style.boxSizing = "border-box";
+          delete cache["seg3.key"];
           
           for (let i = 0; i < chargeInfo3.segments; i++) {
             const seg = document.createElement("div");
@@ -573,24 +652,23 @@ function updateHUD() {
           charge3Wrap.dataset.flashTimer = String(flashTimer3 - 1);
         }
 
-        for (let i = 0; i < chargeInfo3.segments; i++) {
-          const filled = showFull3 ? true : i < chargeInfo3.filled;
-          segs3[chargeInfo3.segments - 1 - i].style.backgroundColor = filled
-            ? chargeInfo3.color
-            : "rgba(255, 255, 255, 0.67)";
-          segs3[chargeInfo3.segments - 1 - i].style.boxShadow = "none";
-          segs3[chargeInfo3.segments - 1 - i].style.opacity = showFull3
-            ? "1"
-            : filled
-              ? "0.4"
-              : "0.15";
+        const seg3Key = `${showFull3}:${chargeInfo3.filled}`;
+        if (cache["seg3.key"] !== seg3Key) {
+          cache["seg3.key"] = seg3Key;
+          const activeBg3 = chargeInfo3.def ? getSquareCSSGradient(chargeInfo3.def, "90deg") : chargeInfo3.color;
+          for (let i = 0; i < chargeInfo3.segments; i++) {
+            const filled = showFull3 ? true : i < chargeInfo3.filled;
+            segs3[chargeInfo3.segments - 1 - i].style.background = filled ? activeBg3 : "rgba(255, 255, 255, 0.67)";
+            segs3[chargeInfo3.segments - 1 - i].style.boxShadow = "none";
+            segs3[chargeInfo3.segments - 1 - i].style.opacity = showFull3 ? "1" : filled ? "0.4" : "0.15";
+          }
         }
-        charge3Wrap.style.opacity = "1";
-        charge3Wrap.style.display = "flex";
+        _setStyle(cache, "seg3.op",      charge3Wrap, "opacity", "1");
+        _setStyle(cache, "seg3.display", charge3Wrap, "display",  "flex");
       } else {
-        charge3Wrap.style.opacity = "0";
-        charge3Wrap.style.display = "none";
-        charge3Wrap.dataset.mode = "";
+        _setStyle(cache, "seg3.op",      charge3Wrap, "opacity", "0");
+        _setStyle(cache, "seg3.display", charge3Wrap, "display",  "none");
+        if (charge3Wrap.dataset.mode !== "") charge3Wrap.dataset.mode = "";
       }
     }
 
@@ -602,16 +680,16 @@ function updateHUD() {
 
     if (scaleWrap) {
       if (scaleInfo) {
-        scaleWrap.style.opacity = "1";
-        scaleWrap.style.display = "flex";
+        _setStyle(cache, "scale.op",      scaleWrap, "opacity", "1");
+        _setStyle(cache, "scale.display", scaleWrap, "display",  "flex");
         if (scaleVal) {
-          scaleVal.innerText = scaleInfo.value;
-          scaleVal.style.color = s.def.color;
+          _setText(cache, "scale.val", scaleVal, scaleInfo.value);
+          applyColorToText(scaleVal, s.def);
         }
-        if (scaleLbl) scaleLbl.innerText = scaleInfo.label;
+        if (scaleLbl) _setText(cache, "scale.lbl", scaleLbl, scaleInfo.label);
       } else {
-        scaleWrap.style.opacity = "0";
-        scaleWrap.style.display = "none";
+        _setStyle(cache, "scale.op",      scaleWrap, "opacity", "0");
+        _setStyle(cache, "scale.display", scaleWrap, "display",  "none");
       }
     }
   });
@@ -627,17 +705,17 @@ function renderSelectUI() {
     const grid = document.getElementById(`grid-p${pNum}`);
     const nameLabel = document.getElementById(`name-label-p${pNum}`);
 
-    prev.style.backgroundColor = square.color;
+    prev.style.background = getSquareCSSGradient(square);
     nameLabel.innerText = square.name;
-    nameLabel.style.color = square.color;
+    applyColorToText(nameLabel, square);
     skillBox.querySelector(".skill-desc").innerText = square.desc;
-    skillBox.querySelector(".skill-desc").style.color = square.color;
+    // desc stays white — gradient on small description text hurts readability
 
     if (grid.innerHTML === "") {
       Object.keys(squareDefs).forEach((sqId) => {
         const item = document.createElement("div");
         item.className = "grid-item";
-        item.style.backgroundColor = squareDefs[sqId].color;
+        item.style.background = getSquareCSSGradient(squareDefs[sqId]);
         item.onclick = (e) => {
           e.stopPropagation();
           SFX.uiClick();

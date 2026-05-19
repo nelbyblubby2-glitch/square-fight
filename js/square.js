@@ -340,11 +340,9 @@ class Square {
       const vs = limeHook.targetOriginalSize;
       const cx = this.x + this.size / 2;
       const cy = this.y + this.size / 2;
-      ctx.fillStyle = this.def.color;
-      ctx.fillRect(cx - vs / 2, cy - vs / 2, vs, vs);
+      fillGradRect(this.def, cx - vs / 2, cy - vs / 2, vs, vs);
     } else {
-      ctx.fillStyle = this.def.color;
-      ctx.fillRect(this.x, this.y, this.size, this.size);
+      fillGradRect(this.def, this.x, this.y, this.size, this.size);
     }
 
     // Jade freeze visual: colored pulsing border

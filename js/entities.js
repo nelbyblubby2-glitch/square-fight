@@ -142,25 +142,22 @@ class Projectile {
   draw() {
     if (this._isSplinter) {
       // Small diamond-shaped splinter projectile
-      ctx.fillStyle = this.mainOwner.def.color;
       ctx.globalAlpha = 0.9;
-      ctx.fillRect(this.x - 4, this.y - 4, 8, 8);
+      fillGradRect(this.mainOwner.def, this.x - 4, this.y - 4, 8, 8);
       ctx.globalAlpha = 1.0;
       return;
     }
     if (this._isMilestone || this._isSapphire) {
       // Medium-sized projectile — draw as a larger square with a glow
-      ctx.fillStyle = this.mainOwner.def.color;
-      ctx.fillRect(this.x - 10, this.y - 10, 20, 20);
+      fillGradRect(this.mainOwner.def, this.x - 10, this.y - 10, 20, 20);
       return;
     }
     if (this._isBlue) {
       // Medium-sized blue projectile; empowered variant is larger
-      ctx.fillStyle = this.mainOwner.def.color;
       if (this._isBluEmpowered) {
-        ctx.fillRect(this.x - 20, this.y - 20, 40, 40);
+        fillGradRect(this.mainOwner.def, this.x - 20, this.y - 20, 40, 40);
       } else {
-        ctx.fillRect(this.x - 10, this.y - 10, 20, 20);
+        fillGradRect(this.mainOwner.def, this.x - 10, this.y - 10, 20, 20);
       }
       return;
     }
@@ -177,12 +174,10 @@ class Projectile {
           particles.push(p);
         }
       }
-      ctx.fillStyle = this.mainOwner.def.color;
-      ctx.fillRect(this.x - 4, this.y - 4, 8, 8);
+      fillGradRect(this.mainOwner.def, this.x - 4, this.y - 4, 8, 8);
       return;
     }
-    ctx.fillStyle = this.mainOwner.def.color;
-    ctx.fillRect(this.x - 4, this.y - 4, 8, 8);
+    fillGradRect(this.mainOwner.def, this.x - 4, this.y - 4, 8, 8);
   }
 }
 
@@ -297,8 +292,7 @@ class Clone {
     if (this.hp <= 0) return;
     ctx.save();
     ctx.globalAlpha = this.cloneType === "indigo" ? 0.2 : 0.55;
-    ctx.fillStyle   = this.def.color;
-    ctx.fillRect(this.x, this.y, this.size, this.size);
+    fillGradRect(this.def, this.x, this.y, this.size, this.size);
     ctx.globalAlpha = 1.0;
     ctx.restore();
   }
@@ -342,14 +336,12 @@ class GiantSquare {
 
   draw() {
     const _gc = this.owner.def.color;
-    const _r  = parseInt(_gc.slice(1,3), 16);
-    const _g  = parseInt(_gc.slice(3,5), 16);
-    const _b  = parseInt(_gc.slice(5,7), 16);
-    ctx.fillStyle   = `rgba(${_r},${_g},${_b},0.3)`;
-    ctx.fillRect(this.x, this.y, this.size, this.size);
-    ctx.strokeStyle = _gc;
+    ctx.save();
+    ctx.globalAlpha = 0.3;
+    fillGradRect(this.owner.def, this.x, this.y, this.size, this.size);
+    ctx.restore();
     ctx.lineWidth   = 3;
-    ctx.strokeRect(this.x, this.y, this.size, this.size);
+    strokeGradRect(this.owner.def, this.x + this.size/2, this.y + this.size/2, this.size);
   }
 }
 
@@ -407,8 +399,8 @@ class BrownSpike {
         s.onTakeDamage();
         if (actualSpikeDmg > 0) SFX.takeDamage();
         this.hitCooldown = 40;
-        floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, actualSpikeDmg.toString(), this.owner.def.color));
-        spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, this.owner.def.color, 5, 1, 3, 4);
+        floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, actualSpikeDmg.toString(), this.owner.def));
+        spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, this.owner.def, 5, 1, 3, 4);
       }
     });
 
@@ -420,7 +412,7 @@ class BrownSpike {
           c.y < hb.y + hb.h && c.y + c.size > hb.y) {
         c.hp = 0;
         this.hitCooldown = 40;
-        spawnSquareParticles(c.x + c.size / 2, c.y + c.size / 2, c.def ? c.def.color : "#ffffff", 6, 1, 3, 4);
+        spawnSquareParticles(c.x + c.size / 2, c.y + c.size / 2, c.def ? c.def : "#ffffff", 6, 1, 3, 4);
       }
     }
   }
@@ -499,7 +491,7 @@ class LimeProjectile {
       target.x = this.x - 1;
       target.y = this.y - 1;
 
-      spawnSquareParticles(this.x, this.y, this.owner.def.color, 8, 1, 3, 5);
+      spawnSquareParticles(this.x, this.y, this.owner.def, 8, 1, 3, 5);
     }
   }
 
@@ -535,8 +527,8 @@ class LimeProjectile {
         const actualLimeDmg = (target.absorbDamage) ? target.absorbDamage(dmg) : (target.hp -= dmg, dmg);
         target.onTakeDamage();
         SFX.takeDamage();
-        floatingNumbers.push(new FloatingNumber(target.x + this.targetOriginalSize / 2, target.y, actualLimeDmg.toString(), this.owner.def.color));
-        spawnSquareParticles(target.x + target.size / 2, target.y + target.size / 2, this.owner.def.color, 6, 1, 3, 5);
+        floatingNumbers.push(new FloatingNumber(target.x + this.targetOriginalSize / 2, target.y, actualLimeDmg.toString(), this.owner.def));
+        spawnSquareParticles(target.x + target.size / 2, target.y + target.size / 2, this.owner.def, 6, 1, 3, 5);
         triggerHitFreeze();
         this.wallHitCD = 15;
       }
@@ -586,29 +578,33 @@ class LimeProjectile {
 
   draw() {
     ctx.save();
-    ctx.strokeStyle = this.owner.def.color;
     ctx.lineWidth   = 2;
     ctx.setLineDash([]);
     ctx.beginPath();
 
     if (this.active) {
       // Flying: Lime → wall nodes → live tip
+      ctx.strokeStyle = getLineGradient(this.chain[0].x, this.chain[0].y, this.x, this.y, this.owner.def);
       ctx.moveTo(this.chain[0].x, this.chain[0].y);
       for (let i = 1; i < this.chain.length; i++) ctx.lineTo(this.chain[i].x, this.chain[i].y);
       ctx.lineTo(this.x, this.y);
     } else if (this.hooked && this.pullTarget) {
       // Pulling: draw the full remaining chain from Lime → remaining nodes → enemy
+      const tx = this.pullTarget.x + this.pullTarget.size / 2;
+      const ty = this.pullTarget.y + this.pullTarget.size / 2;
+      ctx.strokeStyle = getLineGradient(this.chain[0].x, this.chain[0].y, tx, ty, this.owner.def);
       ctx.moveTo(this.chain[0].x, this.chain[0].y);
       for (let i = 1; i < this.chain.length; i++) ctx.lineTo(this.chain[i].x, this.chain[i].y);
-      ctx.lineTo(this.pullTarget.x + this.pullTarget.size / 2, this.pullTarget.y + this.pullTarget.size / 2);
+      ctx.lineTo(tx, ty);
     }
     ctx.stroke();
     ctx.restore();
 
-    // Plain dot at tip while flying
+    // Dot at tip while flying — use end color of gradient if gradient square
     if (this.active) {
       ctx.save();
-      ctx.fillStyle = this.owner.def.color;
+      const def = this.owner.def;
+      ctx.fillStyle = def.color3 ? def.color3 : (def.color2 ? def.color2 : def.color);
       ctx.beginPath();
       ctx.arc(this.x, this.y, 5, 0, Math.PI * 2);
       ctx.fill();
@@ -657,8 +653,8 @@ class GrayStaticClone {
     const alpha = Math.min(1, this.life / 10);  // fade out in last 10 frames
     ctx.save();
     ctx.globalAlpha = 0.45 * alpha;
-    ctx.fillStyle   = this.color;
-    ctx.fillRect(this.x, this.y, this.size, this.size);
+    if (this.def) { fillGradRect(this.def, this.x, this.y, this.size, this.size); }
+    else { ctx.fillStyle = this.color; ctx.fillRect(this.x, this.y, this.size, this.size); }
     ctx.globalAlpha = 1;
     ctx.restore();
   }
@@ -676,6 +672,7 @@ class GoldConstruct {
     this.formed      = false;
     this.hitCooldown = 0;
     this.color       = owner.def.color;
+    this.def         = owner.def; // for gradient support
   }
 
   update() {
@@ -693,13 +690,17 @@ class GoldConstruct {
     // Solid fill - brighter during formation phase
     const formAlpha = this.formed ? 0.55 : (0.2 + 0.35 * (1 - this.life / 90));
     ctx.globalAlpha = formAlpha;
-    ctx.fillStyle   = drawColor;
-    ctx.fillRect(this.x, this.y, this.size, this.size);
+    if (this.def) { fillGradRect(this.def, this.x, this.y, this.size, this.size); }
+    else { ctx.fillStyle = drawColor; ctx.fillRect(this.x, this.y, this.size, this.size); }
     ctx.globalAlpha = 1;
     // Solid border
-    ctx.strokeStyle = drawColor;
     ctx.lineWidth   = 3;
-    ctx.strokeRect(this.x, this.y, this.size, this.size);
+    if (this.def) {
+      strokeGradRect(this.def, this.x + this.size/2, this.y + this.size/2, this.size);
+    } else {
+      ctx.strokeStyle = drawColor;
+      ctx.strokeRect(this.x, this.y, this.size, this.size);
+    }
     // Inner diamond marker when fully formed
     if (this.formed) {
       const cx = this.x + this.size / 2;
@@ -711,7 +712,14 @@ class GoldConstruct {
       ctx.lineTo(cx, cy + r);
       ctx.lineTo(cx - r, cy);
       ctx.closePath();
-      ctx.fillStyle = drawColor;
+      // Diamond uses ctx.fill() so we translate manually for the gradient
+      if (this.def) {
+        ctx.translate(cx - r, cy - r);
+        ctx.fillStyle = getSquareStyle(this.def, r * 2, r * 2);
+        ctx.translate(-(cx - r), -(cy - r));
+      } else {
+        ctx.fillStyle = drawColor;
+      }
       ctx.globalAlpha = 1;
       ctx.fill();
     }
@@ -749,8 +757,8 @@ class MistProjectile {
         const actualStaticDmg = (s.absorbDamage) ? s.absorbDamage(1) : (s.hp -= 1, 1);
         s.onTakeDamage();
         SFX.takeDamage();
-        floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, actualStaticDmg.toString(), this.owner.def.color));
-        spawnSquareParticles(this.x, this.y, this.owner.def.color, 5, 1, 2, 4);
+        floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, actualStaticDmg.toString(), this.owner.def));
+        spawnSquareParticles(this.x, this.y, this.owner.def, 5, 1, 2, 4);
         triggerHitFreeze();
         this.alive = false;
         // Register hit for Mist teleport counter
@@ -765,8 +773,7 @@ class MistProjectile {
 
   draw() {
     if (!this.alive) return;
-    ctx.fillStyle = this.owner.def.color;
-    ctx.fillRect(this.x - 4, this.y - 4, 8, 8);
+    fillGradRect(this.owner.def, this.x - 4, this.y - 4, 8, 8);
   }
 }
 
@@ -791,11 +798,11 @@ function _mistTeleport(mist) {
 
     if (!blocked) {
       // Spawn teleport particles at old position
-      spawnSquareParticles(mist.x + mist.size / 2, mist.y + mist.size / 2, mist.def.color, 15, 1, 4, 7);
+      spawnSquareParticles(mist.x + mist.size / 2, mist.y + mist.size / 2, mist.def, 15, 1, 4, 7);
       mist.x = tx;
       mist.y = ty;
       // Spawn arrival particles
-      spawnSquareParticles(mist.x + mist.size / 2, mist.y + mist.size / 2, mist.def.color, 15, 1, 4, 7);
+      spawnSquareParticles(mist.x + mist.size / 2, mist.y + mist.size / 2, mist.def, 15, 1, 4, 7);
       return;
     }
   }
@@ -844,8 +851,7 @@ class GoldCoin {
     ctx.save();
     ctx.translate(cx, cy);
     ctx.rotate(this.spinAngle);
-    ctx.fillStyle = this.owner.def.color;
-    ctx.fillRect(-r, -r, this.size, this.size);
+    fillGradRect(this.owner.def, -this.size/2, -this.size/2, this.size, this.size);
     ctx.restore();
   }
 }
@@ -907,7 +913,7 @@ class MagentaBeam {
       this.tethered     = true;
       this.tetherTarget = target;
       this.tetherTimer  = 300; // 5s at 60fps
-      spawnSquareParticles(this.x, this.y, this.owner.def.color, 10, 1, 3, 6);
+      spawnSquareParticles(this.x, this.y, this.owner.def, 10, 1, 3, 6);
     }
   }
 
@@ -950,7 +956,7 @@ class MagentaBeam {
     }
 
     ctx.save();
-    ctx.strokeStyle  = this.owner.def.color;
+    ctx.strokeStyle  = getLineGradient(ox, oy, ex, ey, this.owner.def);
     ctx.lineWidth    = 2;
     ctx.setLineDash([]);
     ctx.beginPath();
@@ -1017,8 +1023,7 @@ class EmeraldBullet {
 
   draw() {
     if (!this.alive) return;
-    ctx.fillStyle = this.owner.def.color;
-    ctx.fillRect(this.x - 4, this.y - 4, 8, 8);
+    fillGradRect(this.owner.def, this.x - 4, this.y - 4, 8, 8);
   }
 }
 
@@ -1093,7 +1098,7 @@ class RubyProjectile {
         this.vx = Math.cos(newAngle) * spd;
         this.vy = Math.sin(newAngle) * spd;
 
-        spawnSquareParticles(wx, wy, this.owner.def.color, 8, 1, 3, 5);
+        spawnSquareParticles(wx, wy, this.owner.def, 8, 1, 3, 5);
       } else {
         // Second wall hit — must be a different wall from the first
         if (hitSide === this.firstWall) {
@@ -1108,7 +1113,7 @@ class RubyProjectile {
         const wallBx = wx;
         const wallBy = wy;
         rubyLasers.push(new RubyLaser(this.owner, this.wallAx, this.wallAy, wallBx, wallBy));
-        spawnSquareParticles(wx, wy, this.owner.def.color, 8, 1, 3, 5);
+        spawnSquareParticles(wx, wy, this.owner.def, 8, 1, 3, 5);
         this.alive = false;
         this.owner.rubyProjectileActive = false;
         this.owner.rubyCD = 240;
@@ -1118,13 +1123,12 @@ class RubyProjectile {
 
   draw() {
     if (!this.alive) return;
-    ctx.fillStyle = this.owner.def.color;
-    ctx.fillRect(this.x - 4, this.y - 4, 8, 8);
+    fillGradRect(this.owner.def, this.x - 4, this.y - 4, 8, 8);
 
     // After first bounce: draw a dashed line back to the wall hit point
     if (this.bounced && !rogueState) {
       ctx.save();
-      ctx.strokeStyle = this.owner.def.color;
+      ctx.strokeStyle = getLineGradient(this.x, this.y, this.wallAx, this.wallAy, this.owner.def);
       ctx.lineWidth   = 1.5;
       ctx.globalAlpha = 0.45;
       ctx.setLineDash([5, 4]);
@@ -1187,8 +1191,8 @@ class RubyLaser {
         const actualRubyDmg = (enemy.absorbDamage) ? enemy.absorbDamage(2) : (enemy.hp -= 2, 2);
         enemy.onTakeDamage();
         SFX.takeDamage();
-        floatingNumbers.push(new FloatingNumber(ex, enemy.y, actualRubyDmg, this.owner.def.color));
-        spawnSquareParticles(ex, ey, this.owner.def.color, 6, 1, 3, 5);
+        floatingNumbers.push(new FloatingNumber(ex, enemy.y, actualRubyDmg, this.owner.def));
+        spawnSquareParticles(ex, ey, this.owner.def, 6, 1, 3, 5);
         triggerHitFreeze();
         this.dmgCD = 30; // 0.5s cooldown
       }
@@ -1202,7 +1206,7 @@ class RubyLaser {
   draw() {
     ctx.save();
     // Core line only (no glow)
-    ctx.strokeStyle = this.owner.def.color;
+    ctx.strokeStyle = getLineGradient(this.ax, this.ay, this.bx, this.by, this.owner.def);
     ctx.lineWidth   = 2;
     ctx.setLineDash([]);
     ctx.beginPath();
@@ -1211,12 +1215,16 @@ class RubyLaser {
     ctx.stroke();
     ctx.restore();
 
-    // Dots at each endpoint
+    // Dots at each endpoint — match the gradient: A=start color, B=end color
+    const def = this.owner.def;
+    const colorA = def.color;
+    const colorB = def.color3 ? def.color3 : (def.color2 ? def.color2 : def.color);
     ctx.save();
-    ctx.fillStyle = this.owner.def.color;
+    ctx.fillStyle = colorA;
     ctx.beginPath();
     ctx.arc(this.ax, this.ay, 4, 0, Math.PI * 2);
     ctx.fill();
+    ctx.fillStyle = colorB;
     ctx.beginPath();
     ctx.arc(this.bx, this.by, 4, 0, Math.PI * 2);
     ctx.fill();
@@ -1312,16 +1320,14 @@ class SilverProjectile {
     ctx.save();
     ctx.translate(cx, cy);
     ctx.rotate(this.spinAngle);
-    ctx.fillStyle = this.color;
     ctx.globalAlpha = 0.9;
-    ctx.fillRect(-r, -r, this.size, this.size);
+    fillGradRect(this.owner.def, -this.size/2, -this.size/2, this.size, this.size);
     // Glow ring if countdown is active — flashes faster as it nears 0
     if (this.hasBounced && this.bounceCountdown > 0) {
       const flash = this.bounceCountdown < 20 ? (Math.sin(Date.now() / 40) * 0.5 + 0.5) : 0.5;
-      ctx.strokeStyle = this.color;
       ctx.lineWidth   = 2;
       ctx.globalAlpha = flash;
-      ctx.strokeRect(-r - 3, -r - 3, this.size + 6, this.size + 6);
+      strokeGradRect(this.owner.def, 0, 0, this.size + 6);
     }
     ctx.restore();
     ctx.globalAlpha = 1;
@@ -1356,8 +1362,106 @@ class SilverSquare {
     ctx.save();
     ctx.translate(cx, cy);
     ctx.rotate(this.spinAngle);
-    ctx.fillStyle = this.color;
-    ctx.fillRect(-r, -r, this.size, this.size);
+    if (this.owner) { fillGradRect(this.owner.def, -this.size/2, -this.size/2, this.size, this.size); }
+    else { ctx.fillStyle = this.color; ctx.fillRect(-r, -r, this.size, this.size); }
+    ctx.restore();
+  }
+}
+
+
+// ── Bronze's piercing stick ────────────────────────────────────────────────────
+// Fires toward enemy, pierces all squares it touches (one damage instance each),
+// then embeds in the arena wall and stays (no bounce). Bronze can walk over it to recover 1 charge.
+class BronzeStick {
+  constructor(owner, target) {
+    this.owner  = owner;
+    const cx    = owner.x + owner.size / 2;
+    const cy    = owner.y + owner.size / 2;
+    const tx    = target.x + target.size / 2;
+    const ty    = target.y + target.size / 2;
+    const dist  = Math.hypot(tx - cx, ty - cy) || 1;
+
+    this.x      = cx;
+    this.y      = cy;
+    this.vx     = (tx - cx) / dist * PROJECTILE_SPEED;
+    this.vy     = (ty - cy) / dist * PROJECTILE_SPEED;
+    this.angle  = Math.atan2(this.vy, this.vx);
+
+    this.length    = 55;
+    this.width     = 8;
+    this.stopped   = false;
+    this.hitList   = [];
+    this.alive     = true;
+  }
+
+  // SAT test: rotated rect (rx,ry center, rLen×rWid at rAngle) vs AABB (ax,ay,aw,ah)
+  _overlapsSquare(s) {
+    const cosA = Math.cos(this.angle), sinA = Math.sin(this.angle);
+    const halfL = this.length / 2, halfW = this.width / 2;
+    const acx = s.x + s.size / 2, acy = s.y + s.size / 2;
+    const ahx = s.size / 2,        ahy = s.size / 2;
+    const dx = acx - this.x,       dy  = acy - this.y;
+
+    // Axis 1: stick length axis
+    if (Math.abs(dx * cosA + dy * sinA)   > halfL + ahx * Math.abs(cosA) + ahy * Math.abs(sinA)) return false;
+    // Axis 2: stick width axis
+    if (Math.abs(-dx * sinA + dy * cosA)  > halfW + ahx * Math.abs(sinA) + ahy * Math.abs(cosA)) return false;
+    // Axis 3: world X
+    if (Math.abs(dx) > halfL * Math.abs(cosA) + halfW * Math.abs(sinA) + ahx) return false;
+    // Axis 4: world Y
+    if (Math.abs(dy) > halfL * Math.abs(sinA) + halfW * Math.abs(cosA) + ahy) return false;
+    return true;
+  }
+
+  update() {
+    if (!this.alive) return;
+
+    if (this.stopped) return;
+
+    this.x += this.vx;
+    this.y += this.vy;
+
+    // Stop on wall hit (no bounce)
+    let hit = false;
+    if (this.x <= arena.x)           { this.x = arena.x;           hit = true; }
+    if (this.x >= arena.x + arena.w) { this.x = arena.x + arena.w; hit = true; }
+    if (this.y <= arena.y)           { this.y = arena.y;            hit = true; }
+    if (this.y >= arena.y + arena.h) { this.y = arena.y + arena.h;  hit = true; }
+    if (hit) {
+      this.stopped = true;
+      this.vx = 0;
+      this.vy = 0;
+      spawnSquareParticles(this.x, this.y, this.owner.def, 5, 1, 2, 4);
+    }
+
+    this._checkPiercing();
+  }
+
+  _checkPiercing() {
+    squares.forEach(s => {
+      if (s === this.owner || this.hitList.includes(s) || s.hp <= 0) return;
+      if (!this._overlapsSquare(s)) return;
+      const actualDmg = s.absorbDamage(18);
+      s.onTakeDamage();
+      SFX.takeDamage();
+      floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, actualDmg, this.owner.def));
+      spawnHitEffect(this.x, this.y, this.owner.def);
+      this.hitList.push(s);
+    });
+  }
+
+  draw() {
+    if (!this.alive) return;
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    ctx.rotate(this.angle);
+
+    // Slightly pulse opacity when embedded so it's visible but not distracting
+    if (this.stopped) ctx.globalAlpha = 0.7 + Math.sin(Date.now() * 0.006) * 0.15;
+
+    fillGradRect(this.owner.def, -this.length / 2, -this.width / 2, this.length, this.width);
+
+    ctx.globalAlpha = 1;
     ctx.restore();
   }
 }

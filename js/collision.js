@@ -97,8 +97,8 @@ function resolveCollision(s1, s2) {
   s1.onTakeDamage();  s2.onTakeDamage();
   s1.onHitEnemy();    s2.onHitEnemy();
   SFX.takeDamage();
-  floatingNumbers.push(new FloatingNumber(s1.x + s1.size / 2, s1.y, shown_d1, s2.def.color));
-  floatingNumbers.push(new FloatingNumber(s2.x + s2.size / 2, s2.y, shown_d2, s1.def.color));
+  floatingNumbers.push(new FloatingNumber(s1.x + s1.size / 2, s1.y, shown_d1, s2.def));
+  floatingNumbers.push(new FloatingNumber(s2.x + s2.size / 2, s2.y, shown_d2, s1.def));
   spawnHitEffect(hitX, hitY, "#ffffff");
 
   s1.hitImmunityTimer = HIT_IMMUNITY;
@@ -143,15 +143,15 @@ function resolveCompanionCollision(c, s) {
       c.damage++;
       c.speedBoostTimer = 120;
       c.canDamage = true;
-      spawnSquareParticles(c.x + c.size / 2, c.y + c.size / 2, c.def ? c.def.color : "#ffffff", 5, 1, 3, 5);
+      spawnSquareParticles(c.x + c.size / 2, c.y + c.size / 2, c.def ? c.def : "#ffffff", 5, 1, 3, 5);
     } else if (c.canDamage) {
       const actualCompDmg = (s.absorbDamage) ? s.absorbDamage(c.damage) : (s.hp -= c.damage, c.damage);
       s.onTakeDamage();
       if (actualCompDmg > 0) {
         SFX.takeDamage();
-        floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, actualCompDmg, c.owner ? c.owner.def.color : (c.def ? c.def.color : "#ffffff")));
+        floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, actualCompDmg, c.owner ? c.owner.def : (c.def ? c.def : "#ffffff")));
       }
-      spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, c.def ? c.def.color : "#ffffff", 5, 1, 3, 5);
+      spawnSquareParticles(s.x + s.size / 2, s.y + s.size / 2, c.def ? c.def : "#ffffff", 5, 1, 3, 5);
       triggerHitFreeze();
       c.canDamage = false;
     }
@@ -170,7 +170,7 @@ function resolveCompanionCollision(c, s) {
       if (cDist >= (c.size + clone.size) / 2) continue;
 
       clone.hp = 0;
-      spawnSquareParticles(clone.x + clone.size / 2, clone.y + clone.size / 2, clone.def ? clone.def.color : "#ffffff", 8, 1, 4, 6);
+      spawnSquareParticles(clone.x + clone.size / 2, clone.y + clone.size / 2, clone.def ? clone.def : "#ffffff", 8, 1, 4, 6);
 
       const cnx  = cdx / (cDist || 1);
       const cny  = cdy / (cDist || 1);
@@ -197,9 +197,9 @@ function resolveCloneCollision(c, s) {
   if (s.onTakeDamage) s.onTakeDamage();
   if (actualCloneDmg > 0) {
     SFX.takeDamage();
-    floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, actualCloneDmg, c.def ? c.def.color : "#ffffff"));
+    floatingNumbers.push(new FloatingNumber(s.x + s.size / 2, s.y, actualCloneDmg, c.def ? c.def : "#ffffff"));
   }
-  spawnSquareParticles((c.x + s.x) / 2, (c.y + s.y) / 2, c.def ? c.def.color : "#ffffff", 8, 1, 3, 5);
+  spawnSquareParticles((c.x + s.x) / 2, (c.y + s.y) / 2, c.def ? c.def : "#ffffff", 8, 1, 3, 5);
 }
 
 // ── Gold construct vs Square ──────────────────────────────────────────────────
